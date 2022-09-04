@@ -11,8 +11,12 @@
     "test": "node test.js"
   },
   "dependencies": {
+    "csvtojson": "^2.0.10",
     "ejs": "^3.1.5",
-    "express": "^4.15.2"
+    "express": "^4.15.2",
+    "fs": "^0.0.1-security",
+    "node-fetch": "^2.6.6",
+    "random-useragent": "^0.5.0"
   },
   "devDependencies": {
     "got": "^11.3.0",
