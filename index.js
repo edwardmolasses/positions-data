@@ -10,7 +10,6 @@ const path = __dirname + '/public/views/';
 setVariableInterval(() => { getPositions() }, 30);
 
 app.use(express.static(path));
-// app.get('/', (req, res) => res.render('index.html'));
 
 app.get('/', function (req, res) {
   res.sendFile(path + "index");
@@ -19,7 +18,7 @@ app.get('/', function (req, res) {
 // create a GET route
 app.get('/express_backend', (req, res) => { //Line 9
   res.send({ express: 'YOUR EXPRESS BACKEND IS CONNECTED TO REACT' }); //Line 10
-}); //Line 11
+});
 
 app.get('/api/positionsData', async (req, res) => {
   CSVToJSON().fromFile('positions.csv')
