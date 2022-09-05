@@ -118,7 +118,7 @@ class LineChartComponent extends Component {
 
     return (
       <>
-        <h1 style={{ marginTop: "25px", marginLeft: "180px", position: "absolute" }}>GMX Short/Long Relative Volume</h1>
+        <h1 style={{ marginTop: "25px", marginLeft: "150px", position: "absolute" }}>GMX Short/Long Relative Volume</h1>
         <table style={{ marginTop: "30px", marginLeft: "700px", position: "absolute" }}>
           <tbody>
             <tr>
