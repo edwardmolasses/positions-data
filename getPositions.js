@@ -3,7 +3,8 @@ const page_url = 'https://gmx-server-mainnet.uw.r.appspot.com/position_stats';
 const fs = require('fs');
 const fetch = require('node-fetch');
 const contentful = require("contentful-management");
-const { ACCESS_TOKEN, SPACE_ID } = require('./constants');
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const SPACE_ID = process.env.SPACE_ID;
 
 function getAcceptForBrowserVersion(browser, version) {
     const defaultAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/png,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9";
