@@ -2,6 +2,8 @@ const randomUserAgent = require('random-useragent');
 const page_url = 'https://gmx-server-mainnet.uw.r.appspot.com/position_stats';
 const fs = require('fs');
 const fetch = require('node-fetch');
+const contentful = require("contentful-management");
+const { ACCESS_TOKEN, SPACE_ID } = require('./constants');
 
 function getAcceptForBrowserVersion(browser, version) {
     const defaultAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/png,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9";
@@ -61,8 +63,6 @@ async function getPositionData() {
     // leaving out Host could allow bot detection
     // e.g. Host: 'www.amazon.com'
     const userAgentData = randomUserAgent.getRandomData();
-    console.log(userAgentData.userAgent);
-    console.log(getAcceptForBrowserVersion(userAgentData.browserName, userAgentData.browserMajor));
     const response = await fetch(page_url, {
         "headers": {
             "accept": getAcceptForBrowserVersion(userAgentData.browserName, userAgentData.browserMajor),
@@ -83,6 +83,23 @@ async function getPositionData() {
     const text = await response.text();
 
     return JSON.parse(text);
+}
+
+function addPositionToContentful(datetime, shortVolume, longVolume, shortLongDiff, ethPrice) {
+    const client = contentful.createClient({ accessToken: ACCESS_TOKEN });
+    let entry = client.getSpace(SPACE_ID)
+        .then((space) => space.getEnvironment('master'))
+        .then((environment) => environment.createEntry('positions', {
+            fields: {
+                timestamp: { 'en-US': datetime },
+                shortVolume: { 'en-US': shortVolume },
+                longVolume: { 'en-US': longVolume },
+                shortLongDiff: { 'en-US': shortLongDiff },
+                ethPrice: { 'en-US': ethPrice }
+            }
+        }))
+        .then((entry) => null)
+        .catch(console.error);
 }
 
 async function getEthPrice() {
@@ -111,6 +128,7 @@ async function getPositions() {
         const datetime = Date.now();
         const row = `\r\n${datetime},${shortVolume},${longVolume},${shortLongDiff},${parseInt(ethPrice.price)}`;
 
+        addPositionToContentful(datetime, shortVolume, longVolume, shortLongDiff, parseInt(ethPrice.price));
         fs.appendFileSync("positions.csv", row);
     }
 }

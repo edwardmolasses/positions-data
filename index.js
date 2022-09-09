@@ -2,6 +2,7 @@ const express = require('express')
 const CSVToJSON = require('csvtojson');
 const PORT = process.env.PORT || 5003
 const getPositions = require('./getPositions');
+const getPositionsFromContentful = require('./getPositionsFromContentful');
 const setVariableInterval = require('./setVariableInterval');
 
 const app = express(); //Line 2
@@ -18,6 +19,10 @@ app.get('/', function (req, res) {
 // create a GET route
 app.get('/express_backend', (req, res) => { //Line 9
   res.send({ express: 'YOUR EXPRESS BACKEND IS CONNECTED TO REACT' }); //Line 10
+});
+
+app.get('/api/positionsDataFromContentful', async (req, res) => {
+  res.send(await getPositionsFromContentful());
 });
 
 app.get('/api/positionsData', async (req, res) => {

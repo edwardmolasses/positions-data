@@ -40,6 +40,9 @@ class LineChartComponent extends Component {
     async function getChartData() {
       const response = await fetch('/api/positionsData');
       return await response.json();
+
+      // const response = await fetch('/api/positionsDataFromContentful');
+      // return await response.json();
     }
 
     const fetchData = async () => {
@@ -159,7 +162,7 @@ class LineChartComponent extends Component {
           <Line type="monotone" dataKey="shortMinusLong" stroke="#8884d8" strokeWidth={2} dot={false} />
           <CartesianGrid stroke="#ccc" strokeWidth="5 5" />
           <XAxis dataKey="date" tickFormatter={formatXAxis} angle={-45} textAnchor="end" tick={{ fontSize: '12' }} />
-          <YAxis tickFormatter={formatYAxis} domain={[-45000000, 45000000]} tick={{ fontSize: '12' }} />
+          <YAxis tickFormatter={formatYAxis} domain={[-65000000, 65000000]} tick={{ fontSize: '12' }} />
           <Tooltip content={<CustomTooltip />} />
         </LineChart>
       </>
