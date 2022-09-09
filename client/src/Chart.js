@@ -38,11 +38,10 @@ class LineChartComponent extends Component {
 
   componentDidMount() {
     async function getChartData() {
-      const response = await fetch('/api/positionsData');
-      return await response.json();
-
-      // const response = await fetch('/api/positionsDataFromContentful');
+      // const response = await fetch('/api/positionsData');
       // return await response.json();
+      const response = await fetch('/api/positionsDataFromContentful');
+      return await response.json();
     }
 
     const fetchData = async () => {
