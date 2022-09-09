@@ -117,7 +117,7 @@ async function getEthPrice() {
     return JSON.parse(text);
 }
 
-async function getPositions() {
+async function addPositions() {
     const positionData = await getPositionData();
     const ethPrice = await getEthPrice();
 
@@ -134,4 +134,4 @@ async function getPositions() {
     }
 }
 
-module.exports = getPositions;
+module.exports = addPositions;

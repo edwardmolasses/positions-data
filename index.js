@@ -1,14 +1,14 @@
 const express = require('express')
 const CSVToJSON = require('csvtojson');
 const PORT = process.env.PORT || 5003
-const getPositions = require('./getPositions');
+const addPositions = require('./addPositions');
 const getPositionsFromContentful = require('./getPositionsFromContentful');
 const setVariableInterval = require('./setVariableInterval');
 
 const app = express(); //Line 2
 const path = __dirname + '/public/views/';
 
-setVariableInterval(() => { getPositions() }, 30);
+setVariableInterval(() => { addPositions() }, 30);
 
 app.use(express.static(path));
 
