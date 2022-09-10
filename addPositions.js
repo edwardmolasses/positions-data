@@ -58,7 +58,6 @@ function getAcceptForBrowserVersion(browser, version) {
     return accept;
 }
 
-
 async function getPositionData() {
     // NOTES:
     // leaving out Host could allow bot detection
