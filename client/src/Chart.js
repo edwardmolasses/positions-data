@@ -154,14 +154,14 @@ class LineChartComponent extends Component {
           <ReferenceLine y={-25000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
           <ReferenceLine y={25000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
           <ReferenceArea
-            y1={-25000000}
-            y2={25000000}
+            y1={-50000000}
+            y2={50000000}
             shape={<Rectangle />}
           />
           <Line type="monotone" dataKey="shortMinusLong" stroke="#8884d8" strokeWidth={2} dot={false} />
           <CartesianGrid stroke="#ccc" strokeWidth="5 5" />
           <XAxis dataKey="date" tickFormatter={formatXAxis} angle={-45} textAnchor="end" tick={{ fontSize: '12' }} />
-          <YAxis tickFormatter={formatYAxis} domain={[-65000000, 65000000]} tick={{ fontSize: '12' }} />
+          <YAxis tickFormatter={formatYAxis} domain={[-85000000, 85000000]} tick={{ fontSize: '12' }} />
           <Tooltip content={<CustomTooltip />} />
         </LineChart>
       </>
