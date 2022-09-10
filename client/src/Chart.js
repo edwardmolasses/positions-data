@@ -151,8 +151,8 @@ class LineChartComponent extends Component {
         </table>
         <LineChart width={1000} height={700} data={chartData} margin={{ top: 120, right: 20, bottom: 100, left: 50 }}>
           <ReferenceLine y={0} stroke="orange" strokeWidth={2} strokeDasharray="3 3" />
-          <ReferenceLine y={-25000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
-          <ReferenceLine y={25000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
+          <ReferenceLine y={-50000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
+          <ReferenceLine y={50000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
           <ReferenceArea
             y1={-50000000}
             y2={50000000}
