@@ -12,7 +12,8 @@ async function getPositionsFromCsv() {
                     "shortLongDiff": parseInt(row['shortLongDiff']),
                     "shortVolume": parseInt(row['shortVolume']),
                     "longVolume": parseInt(row['longVolume']),
-                    "ethPrice": !!row['ethPrice'] ? parseInt(row['ethPrice']) : null
+                    "ethPrice": !!row['ethPrice'] ? parseInt(row['ethPrice']) : null,
+                    "percentPriceChange": !!row['percentPriceChange'] ? parseInt(row['percentPriceChange']) : null
                 }
             });
         }).catch(err => {
@@ -28,6 +29,7 @@ async function getContentfulData() {
     return client.getSpace(SPACE_ID)
         .then((space) => space.getEnvironment('master'))
         .then((environment) => environment.getEntries('positions', {
+            limit: 1000
         }))
         .then((entries) => {
             const contentfulRecords = entries.items
@@ -37,7 +39,8 @@ async function getContentfulData() {
                         "shortLongDiff": parseInt(entry.fields.shortLongDiff['en-US']),
                         "shortVolume": parseInt(entry.fields.shortVolume['en-US']),
                         "longVolume": parseInt(entry.fields.longVolume['en-US']),
-                        "ethPrice": !!entry.fields.ethPrice['en-US'] ? parseInt(entry.fields.ethPrice['en-US']) : null
+                        "ethPrice": !!entry.fields.ethPrice ? parseInt(entry.fields.ethPrice['en-US']) : null,
+                        "percentPriceChange": !!entry.fields.percentPriceChange ? parseInt(entry.fields.percentPriceChange['en-US']) : null,
                     }
                 })
                 .sort((a, b) => a['timestamp'] - b['timestamp']);

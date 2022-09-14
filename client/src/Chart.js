@@ -2,6 +2,7 @@ import { Component } from "react";
 import {
   ReferenceLine,
   ReferenceArea,
+  ReferenceDot,
   Rectangle,
   LineChart,
   Line,
@@ -18,7 +19,8 @@ class LineChartComponent extends Component {
     latestShortVolume: 0,
     latestLongVolume: 0,
     latestEthPrice: 0,
-    offset: null
+    offset: null,
+    numOfEntries: 0
   };
 
   formatData = (data) =>
@@ -45,6 +47,8 @@ class LineChartComponent extends Component {
     }
 
     const fetchData = async () => {
+      const numOfEntriesResponse = await fetch('/api/getContentfulNumOfEntries');
+      const numOfEntries = await numOfEntriesResponse.text();
       const rawChartData = await getChartData();
       const chartData = this.formatData(rawChartData);
       const latestRecord = rawChartData[rawChartData.length - 1];
@@ -55,7 +59,8 @@ class LineChartComponent extends Component {
         latestShortVolume: latestRecord.shortVolume,
         latestLongVolume: latestRecord.longVolume,
         latestEthPrice: latestRecord.ethPrice,
-        offset: this.gradientOffset(chartData)
+        offset: this.gradientOffset(chartData),
+        numOfEntries: numOfEntries
       });
     };
     fetchData();
@@ -150,6 +155,11 @@ class LineChartComponent extends Component {
           </tbody>
         </table>
         <LineChart width={1000} height={700} data={chartData} margin={{ top: 120, right: 20, bottom: 100, left: 50 }}>
+          {this.state.rawChartData.map(entry => {
+            if (!!entry.percentPriceChange) {
+              return <ReferenceDot x={entry.timestamp} y={entry.shortLongDiff} r={5} fill="red" stroke="none" />;
+            }
+          })}
           <ReferenceLine y={0} stroke="orange" strokeWidth={2} strokeDasharray="3 3" />
           <ReferenceLine y={-50000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
           <ReferenceLine y={50000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />

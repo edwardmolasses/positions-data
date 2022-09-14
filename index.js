@@ -4,6 +4,7 @@ const PORT = process.env.PORT || 5003
 const addPositions = require('./addPositions');
 const getPositionsFromContentful = require('./getPositionsFromContentful');
 const setVariableInterval = require('./setVariableInterval');
+const getContentfulNumOfEntries = require('./getContentfulNumOfEntries');
 
 const app = express(); //Line 2
 const path = __dirname + '/public/views/';
@@ -19,6 +20,12 @@ app.get('/', function (req, res) {
 // create a GET route
 app.get('/express_backend', (req, res) => { //Line 9
   res.send({ express: 'YOUR EXPRESS BACKEND IS CONNECTED TO REACT' }); //Line 10
+});
+
+app.get('/api/getContentfulNumOfEntries', async (req, res) => {
+  const numOfEntries = await getContentfulNumOfEntries()
+  console.log('numOfEntries: ', numOfEntries);
+  res.send(numOfEntries);
 });
 
 app.get('/api/positionsDataFromContentful', async (req, res) => {
