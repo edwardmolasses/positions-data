@@ -13,7 +13,7 @@ async function getPositionsFromCsv() {
                     "shortVolume": parseInt(row['shortVolume']),
                     "longVolume": parseInt(row['longVolume']),
                     "ethPrice": !!row['ethPrice'] ? parseInt(row['ethPrice']) : null,
-                    "percentPriceChange": !!row['percentPriceChange'] ? parseInt(row['percentPriceChange']) : null
+                    "percentPriceChange": !!row['percentPriceChange'] ? row['percentPriceChange'] : null
                 }
             });
         }).catch(err => {
@@ -40,7 +40,7 @@ async function getContentfulData() {
                         "shortVolume": parseInt(entry.fields.shortVolume['en-US']),
                         "longVolume": parseInt(entry.fields.longVolume['en-US']),
                         "ethPrice": !!entry.fields.ethPrice ? parseInt(entry.fields.ethPrice['en-US']) : null,
-                        "percentPriceChange": !!entry.fields.percentPriceChange ? parseInt(entry.fields.percentPriceChange['en-US']) : null,
+                        "percentPriceChange": !!entry.fields.percentPriceChange ? entry.fields.percentPriceChange['en-US'] : null,
                     }
                 })
                 .sort((a, b) => a['timestamp'] - b['timestamp']);

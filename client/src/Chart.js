@@ -108,6 +108,13 @@ class LineChartComponent extends Component {
                       </td>
                     </tr>
                   )}
+                {rawDataElement?.percentPriceChange && (
+                  <tr>
+                    <td>
+                      Price Δ: {rawDataElement.percentPriceChange}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
