@@ -40,16 +40,14 @@ class LineChartComponent extends Component {
 
   componentDidMount() {
     async function getChartData() {
-      // const response = await fetch('/api/positionsData');
-      // return await response.json();
       const response = await fetch('/api/positionsDataFromContentful');
       return await response.json();
     }
-
     const fetchData = async () => {
       const numOfEntriesResponse = await fetch('/api/getContentfulNumOfEntries');
-      const numOfEntries = await numOfEntriesResponse.text();
+      const numOfEntries = await numOfEntriesResponse.json();
       const rawChartData = await getChartData();
+      // TODO: detect > 5% price drop within 2-3 hours of timestamped records and add drop to data for reference dots
       const chartData = this.formatData(rawChartData);
       const latestRecord = rawChartData[rawChartData.length - 1];
 
@@ -60,7 +58,7 @@ class LineChartComponent extends Component {
         latestLongVolume: latestRecord.longVolume,
         latestEthPrice: latestRecord.ethPrice,
         offset: this.gradientOffset(chartData),
-        numOfEntries: numOfEntries
+        numOfEntries: numOfEntries.numOfEntries
       });
     };
     fetchData();
@@ -159,9 +157,17 @@ class LineChartComponent extends Component {
                 ${prettifyNum(this.state.latestEthPrice)}
               </td>
             </tr>
+            <tr>
+              <td>
+                <b>DB Entries: </b>
+              </td>
+              <td style={{ textAlign: "right" }}>
+                {prettifyNum(this.state.numOfEntries)}
+              </td>
+            </tr>
           </tbody>
         </table>
-        <LineChart width={1000} height={700} data={chartData} margin={{ top: 120, right: 20, bottom: 100, left: 50 }}>
+        <LineChart width={1000} height={700} data={chartData} margin={{ top: 130, right: 20, bottom: 100, left: 50 }}>
           {this.state.rawChartData.map(entry => {
             if (!!entry.percentPriceChange) {
               return <ReferenceDot x={entry.timestamp} y={entry.shortLongDiff} r={5} fill="red" stroke="none" />;

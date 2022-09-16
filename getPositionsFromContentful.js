@@ -22,9 +22,50 @@ async function getPositionsFromCsv() {
         });
 }
 
+async function getAllContentfulData() {
+    const positionsFromCsv = (await getPositionsFromCsv()).sort((a, b) => a['timestamp'] - b['timestamp']);
+    const scopedPlainClient = contentful.createClient(
+        {
+            accessToken: ACCESS_TOKEN,
+        },
+        {
+            type: 'plain',
+            defaults: {
+                spaceId: SPACE_ID,
+                environmentId: 'master',
+            },
+        }
+    );
+    const entries = await scopedPlainClient.entry.getMany({
+        query: {
+            skip: 0,
+            limit: 1000,
+        },
+    });
+    const contentfulRecords = entries.items
+        .map(function (entry) {
+            return {
+                "timestamp": parseInt(entry.fields.timestamp['en-US']),
+                "shortLongDiff": parseInt(entry.fields.shortLongDiff['en-US']),
+                "shortVolume": parseInt(entry.fields.shortVolume['en-US']),
+                "longVolume": parseInt(entry.fields.longVolume['en-US']),
+                "ethPrice": !!entry.fields.ethPrice ? parseInt(entry.fields.ethPrice['en-US']) : null,
+                "percentPriceChange": !!entry.fields.percentPriceChange ? entry.fields.percentPriceChange['en-US'] : null,
+            }
+        })
+        .sort((a, b) => a['timestamp'] - b['timestamp']);
+    const earlistContentfulTimestamp = contentfulRecords[0]['timestamp'];
+    const csvSliceIndex = positionsFromCsv.findIndex(csvRecord => csvRecord.timestamp >= earlistContentfulTimestamp);
+    const usablePositionsFromCsv = positionsFromCsv.slice(0, csvSliceIndex);
+
+    return usablePositionsFromCsv.concat(contentfulRecords);
+}
+
 async function getContentfulData() {
     const positionsFromCsv = (await getPositionsFromCsv()).sort((a, b) => a['timestamp'] - b['timestamp']);
-    const client = contentful.createClient({ accessToken: ACCESS_TOKEN });
+    const client = contentful.createClient({
+        accessToken: ACCESS_TOKEN
+    });
 
     return client.getSpace(SPACE_ID)
         .then((space) => space.getEnvironment('master'))
@@ -54,7 +95,8 @@ async function getContentfulData() {
 }
 
 async function getPositionsFromContentful() {
-    return await getContentfulData();
+    // return await getContentfulData();
+    return getAllContentfulData();
 }
 
 module.exports = getPositionsFromContentful;
