@@ -1,20 +1,24 @@
-function getRandomArbitrary(min, max) {
-    return Math.random() * (max - min) + min;
+function getRandomArbitrary(intervalMinutes) {
+    return parseInt(Math.random() * (intervalMinutes - 1) + 1);
 }
 
-async function setVariableInterval(execFunction, intervalMinutes = 30) {
+function getInterval(intervalMinutes, isVariable) {
     const second = 1000;
     const minute = 60 * second;
-    let minutesFactor = parseInt(getRandomArbitrary(1, intervalMinutes));
 
+    return (isVariable ? getRandomArbitrary(intervalMinutes) : intervalMinutes) * minute;
+}
+
+async function setVariableInterval(execFunction, intervalMinutes = 30, isVariable = true) {
+    let minutes = getInterval(intervalMinutes, isVariable);
     const intervalFunction = async function () {
-        minutesFactor = parseInt(getRandomArbitrary(1, intervalMinutes));
-        console.log('minuteInterval', minutesFactor);
+        minutes = getInterval(intervalMinutes, isVariable);
+        console.log('minuteInterval', minutes / 60000);
         await execFunction();
-        setTimeout(intervalFunction, minutesFactor * minute);
+        setTimeout(intervalFunction, minutes);
     }
 
-    setTimeout(intervalFunction, minutesFactor);
+    setTimeout(intervalFunction);
 }
 
 module.exports = setVariableInterval;

@@ -1,7 +1,7 @@
 const contentful = require("contentful-management");
 const CSVToJSON = require('csvtojson');
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
-const SPACE_ID = process.env.SPACE_ID;
+const CONTENTFUL_ACCESS_TOKEN = process.env.CONTENTFUL_ACCESS_TOKEN;
+const CONTENTFUL_SPACE_ID = process.env.CONTENTFUL_SPACE_ID;
 
 async function getPositionsFromCsv() {
     return CSVToJSON().fromFile('positions.csv')
@@ -22,16 +22,16 @@ async function getPositionsFromCsv() {
         });
 }
 
-async function getAllContentfulData() {
+async function getAllPositionsData() {
     const positionsFromCsv = (await getPositionsFromCsv()).sort((a, b) => a['timestamp'] - b['timestamp']);
     const scopedPlainClient = contentful.createClient(
         {
-            accessToken: ACCESS_TOKEN,
+            accessToken: CONTENTFUL_ACCESS_TOKEN,
         },
         {
             type: 'plain',
             defaults: {
-                spaceId: SPACE_ID,
+                spaceId: CONTENTFUL_SPACE_ID,
                 environmentId: 'master',
             },
         }
@@ -61,42 +61,9 @@ async function getAllContentfulData() {
     return usablePositionsFromCsv.concat(contentfulRecords);
 }
 
-async function getContentfulData() {
-    const positionsFromCsv = (await getPositionsFromCsv()).sort((a, b) => a['timestamp'] - b['timestamp']);
-    const client = contentful.createClient({
-        accessToken: ACCESS_TOKEN
-    });
-
-    return client.getSpace(SPACE_ID)
-        .then((space) => space.getEnvironment('master'))
-        .then((environment) => environment.getEntries('positions', {
-            limit: 1000
-        }))
-        .then((entries) => {
-            const contentfulRecords = entries.items
-                .map(function (entry) {
-                    return {
-                        "timestamp": parseInt(entry.fields.timestamp['en-US']),
-                        "shortLongDiff": parseInt(entry.fields.shortLongDiff['en-US']),
-                        "shortVolume": parseInt(entry.fields.shortVolume['en-US']),
-                        "longVolume": parseInt(entry.fields.longVolume['en-US']),
-                        "ethPrice": !!entry.fields.ethPrice ? parseInt(entry.fields.ethPrice['en-US']) : null,
-                        "percentPriceChange": !!entry.fields.percentPriceChange ? entry.fields.percentPriceChange['en-US'] : null,
-                    }
-                })
-                .sort((a, b) => a['timestamp'] - b['timestamp']);
-            const earlistContentfulTimestamp = contentfulRecords[0]['timestamp'];
-            const csvSliceIndex = positionsFromCsv.findIndex(csvRecord => csvRecord.timestamp >= earlistContentfulTimestamp);
-            const usablePositionsFromCsv = positionsFromCsv.slice(0, csvSliceIndex);
-
-            return usablePositionsFromCsv.concat(contentfulRecords);
-        })
-        .catch(console.error);
+async function getPositionsData() {
+    const allPositionsData = await getAllPositionsData();
+    return allPositionsData;
 }
 
-async function getPositionsFromContentful() {
-    // return await getContentfulData();
-    return getAllContentfulData();
-}
-
-module.exports = getPositionsFromContentful;
+module.exports = getPositionsData;

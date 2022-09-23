@@ -2,7 +2,8 @@ const express = require('express')
 const CSVToJSON = require('csvtojson');
 const PORT = process.env.PORT || 5003
 const addPositions = require('./addPositions');
-const getPositionsFromContentful = require('./getPositionsFromContentful');
+const getPositionsData = require('./getPositionsData');
+const sendTelegramMessages = require('./sendTelegramMessages');
 const setVariableInterval = require('./setVariableInterval');
 const getContentfulNumOfEntries = require('./getContentfulNumOfEntries');
 
@@ -10,6 +11,8 @@ const app = express(); //Line 2
 const path = __dirname + '/public/views/';
 
 setVariableInterval(() => { addPositions() }, 30);
+
+setVariableInterval(() => { sendTelegramMessages() }, 15, false);
 
 app.use(express.static(path));
 
@@ -29,7 +32,7 @@ app.get('/api/getContentfulNumOfEntries', async (req, res) => {
 });
 
 app.get('/api/positionsDataFromContentful', async (req, res) => {
-  res.send(await getPositionsFromContentful());
+  res.send(await getPositionsData());
 });
 
 app.get('/api/positionsData', async (req, res) => {
