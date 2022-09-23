@@ -69,29 +69,46 @@ async function sendTelegramMessages() {
         let msg = "";
         if (isSustainedHeavyLongs || isSustainedHeavyShorts || isExtremeLongs || isExtremeShorts) {
             const ratio = parseFloat(lastPositionData.shortVolume / lastPositionData.longVolume).toFixed(2);
-            msg = `*** ${isExtremeLongs || isExtremeShorts ? `HIGH ` : ``}ALERT ***\n`;
+            const msgTitle = (isExtremeLongs, isExtremeShorts) => `*** ${isExtremeLongs || isExtremeShorts ? `HIGH ` : ``}ALERT ***\n`;
+            const msgStats =
+                (shortVolume, longVolume, shortLongDiff, ratio) =>
+                    `\n\nShort Volume: $${prettifyNum(shortVolume)}\nLong Volume: $${prettifyNum(longVolume)}\nDifference: $${prettifyNum(shortLongDiff)}\nS/L Ratio: ${ratio}`;
+
             if (isSustainedHeavyLongs || isSustainedHeavyShorts) {
                 if (isSustainedHeavyLongs && lastMsgStatus !== MSG_HEAVY_LONGS) {
+                    msg += msgTitle(isExtremeLongs, isExtremeShorts);
                     msg += `\nLeveraged Long positions on GMX are at high levels relative to Shorts`;
                     setLastMsg(MSG_HEAVY_LONGS);
+                    msg += msgStats(lastPositionData.shortVolume, lastPositionData.longVolume, lastPositionData.shortLongDiff, ratio);
                 }
                 if (isSustainedHeavyShorts && lastMsgStatus !== MSG_HEAVY_SHORTS) {
+                    msg += msgTitle(isExtremeLongs, isExtremeShorts);
                     msg += `\nLeveraged Short positions on GMX are at high levels relative to Longs`;
                     setLastMsg(MSG_HEAVY_SHORTS);
+                    msg += msgStats(lastPositionData.shortVolume, lastPositionData.longVolume, lastPositionData.shortLongDiff, ratio);
                 }
             }
             if (isExtremeLongs || isExtremeShorts) {
                 if (isSustainedHeavyLongs && lastMsgStatus !== MSG_EXTREME_LONGS) {
+                    msg += msgTitle(isExtremeLongs, isExtremeShorts)
                     msg += `\nLeveraged Long Positions on GMX have hit an extreme level relative to shorts in the past hour`;
                     setLastMsg(MSG_EXTREME_LONGS);
+                    msg += msgStats(lastPositionData.shortVolume, lastPositionData.longVolume, lastPositionData.shortLongDiff, ratio);
                 }
                 if (isSustainedHeavyShorts && lastMsgStatus !== MSG_EXTREME_SHORTS) {
+                    msg += msgTitle(isExtremeLongs, isExtremeShorts)
                     msg += `\nLeveraged Short Positions on GMX have hit an extreme level relative to longs in the past hour`;
                     setLastMsg(MSG_EXTREME_SHORTS);
+                    msg += msgStats(lastPositionData.shortVolume, lastPositionData.longVolume, lastPositionData.shortLongDiff, ratio);
                 }
             }
-            msg += `\n\nShort Volume: $${prettifyNum(lastPositionData.shortVolume)}\nLong Volume: $${prettifyNum(lastPositionData.longVolume)}\nDifference: $${prettifyNum(lastPositionData.shortLongDiff)}\nS/L Ratio: ${ratio}`;
         } else {
+            if (lastMsgStatus === MSG_HEAVY_LONGS ||
+                lastMsgStatus === MSG_HEAVY_SHORTS ||
+                lastMsgStatus === MSG_EXTREME_LONGS ||
+                lastMsgStatus === MSG_EXTREME_SHORTS) {
+                msg += "UPDATE: LEVERAGED SHORTS/LONGS ARE NO LONGER AT AN ELEVATED LEVEL";
+            }
             setLastMsg(MSG_NO_ALERT);
         }
 
