@@ -1,23 +1,15 @@
 const randomUserAgent = require('random-useragent');
+const randomFacts = require('random-facts');
 const page_url = 'https://gmx-server-mainnet.uw.r.appspot.com/position_stats';
 const fs = require('fs');
 const fetch = require('node-fetch');
 const contentful = require("contentful-management");
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
-const SPACE_ID = process.env.SPACE_ID;
+const { ACCEPT_STRINGS } = require('./constants');
+
+const CONTENTFUL_ACCESS_TOKEN = process.env.CONTENTFUL_ACCESS_TOKEN;
+const CONTENTFUL_SPACE_ID = process.env.CONTENTFUL_SPACE_ID;
 
 function getAcceptForBrowserVersion(browser, version) {
-    const defaultAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/png,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9";
-    const firefox92andLater = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8';
-    const firefox72to91 = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8';
-    const firefox66to71 = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-    const firefox65 = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8';
-    const firefox64andEarlier = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-    const safariAndChrome = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8';
-    const safari5 = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-    const ie8 = 'image/jpeg, application/x-ms-application, image/gif, application/xaml+xml, image/pjpeg, application/x-ms-xbap, application/x-shockwave-flash, application/msword, */*';
-    const edge = 'text/html, application/xhtml+xml, image/jxr, */*';
-    const opera = 'text/html, application/xml;q=0.9, application/xhtml+xml, image/png, image/webp, image/jpeg, image/gif, image/x-xbitmap, */*;q=0.1';
     let accept;
 
     browser = browser.toLowerCase();
@@ -25,34 +17,34 @@ function getAcceptForBrowserVersion(browser, version) {
 
     if (browser === 'firefox') {
         if (version < 65) {
-            accept = firefox64andEarlier;
+            accept = ACCEPT_STRINGS['firefox64andEarlier'];
         }
         if (version === 65) {
-            accept = firefox65;
+            accept = ACCEPT_STRINGS['firefox65'];
         }
         if (version >= 66 && version <= 71) {
-            accept = firefox66to71;
+            accept = ACCEPT_STRINGS['firefox66to71'];
         }
         if (version >= 72 && version <= 91) {
-            accept = firefox72to91;
+            accept = ACCEPT_STRINGS['firefox72to91'];
         }
         if (version >= 92 || !!!version) {
-            accept = firefox92andLater;
+            accept = ACCEPT_STRINGS['firefox92andLater'];
         }
     } else if (browser === 'safari' || browser === 'chrome') {
         if (browser === 'safari' && !!version && version === 5) {
-            accept = safari5;
+            accept = ACCEPT_STRINGS['safari5'];
         } else {
-            accept = safariAndChrome;
+            accept = ACCEPT_STRINGS['safariAndChrome'];
         }
     } else if (browser === 'ie') {
-        accept = ie8;
+        accept = ACCEPT_STRINGS['ie8'];
     } else if (browser === 'edge') {
-        accept = edge;
+        accept = ACCEPT_STRINGS['edge'];
     } else if (browser === 'opera') {
-        accept = opera;
+        accept = ACCEPT_STRINGS['opera'];
     } else {
-        accept = defaultAccept;
+        accept = ACCEPT_STRINGS['defaultAccept'];
     }
 
     return accept;
@@ -86,8 +78,8 @@ async function getPositionData() {
 }
 
 function addPositionToContentful(datetime, shortVolume, longVolume, shortLongDiff, ethPrice) {
-    const client = contentful.createClient({ accessToken: ACCESS_TOKEN });
-    let entry = client.getSpace(SPACE_ID)
+    const client = contentful.createClient({ accessToken: CONTENTFUL_ACCESS_TOKEN });
+    let entry = client.getSpace(CONTENTFUL_SPACE_ID)
         .then((space) => space.getEnvironment('master'))
         .then((environment) => environment.createEntry('positions', {
             fields: {
