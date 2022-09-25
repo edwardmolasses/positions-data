@@ -38,12 +38,6 @@ async function getAllPositionsData() {
             },
         }
     );
-    const entries = await scopedPlainClient.entry.getMany({
-        query: {
-            skip: 0,
-            limit: 1000,
-        },
-    });
     const getAllContentfulEntries = async function () {
         const items = await Promise.all(Array.from(Array(Math.ceil(numOfEntries / 1000)).keys()).map(async element => {
             const response = await scopedPlainClient.entry.getMany({
