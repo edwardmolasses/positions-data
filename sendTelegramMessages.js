@@ -3,7 +3,7 @@ const { TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const puppeteer = require("puppeteer");
 
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 const peer = 'edwardmolasses';
 // const peer = 'robertplankton';
 const TG_API_ID = parseInt(process.env.TG_API_ID);
@@ -14,10 +14,11 @@ const MSG_HEAVY_LONGS = "SUSTAINED HEAVY LONGS";
 const MSG_HEAVY_SHORTS = "SUSTAINED HEAVY SHORTS";
 const MSG_EXTREME_LONGS = "SUSTAINED EXTREME LONGS";
 const MSG_EXTREME_SHORTS = "SUSTAINED EXTREME SHORTS";
+const SL_DIFF_SIGN_FLIP = "SL DIFF SIGN FLIP";
 const millionMultiplier = 1000000;
 const leverageThreshold = 50 * millionMultiplier;
 const extremeLeverageThreshold = 70 * millionMultiplier;
-const remoteChartUrl = 'http://floating-hamlet-81093.herokuapp.com';
+const remoteChartUrl = 'floating-hamlet-81093.herokuapp.com';
 const remoteChartWidth = 1030;
 const remoteChartHeight = 675;
 const chartFilename = 'chart.png';
@@ -25,18 +26,9 @@ const setLastMsg = (lastMsgStatusStr) => lastMsgStatus = lastMsgStatusStr;
 let lastMsgStatus = MSG_NO_ALERT;
 
 async function sendTelegramMessages() {
-    const allPositionsData = await getPositionsData();
-    const latestPositionData = allPositionsData.slice(allPositionsData.length - 10);
-    const lastPositionData = allPositionsData[allPositionsData.length - 1];
-    const isSustainedHeavyLongs = latestPositionData.reduce(
-        (numHeavyLongItems, currentItem) => currentItem.shortLongDiff < -leverageThreshold ? numHeavyLongItems + 1 : numHeavyLongItems, 0) >= 5;
     const prettifyNum = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    const isExtremeLongs = DEBUG_MODE ? true : latestPositionData.reduce(
-        (numHeavyLongItems, currentItem) => currentItem.shortLongDiff < -extremeLeverageThreshold ? numHeavyLongItems + 1 : numHeavyLongItems, 0) >= 2;
-    const isSustainedHeavyShorts = latestPositionData.reduce(
-        (numHeavyLongItems, currentItem) => currentItem.shortLongDiff > leverageThreshold ? numHeavyLongItems + 1 : numHeavyLongItems, 0) >= 5;
-    const isExtremeShorts = latestPositionData.reduce(
-        (numHeavyLongItems, currentItem) => currentItem.shortLongDiff > extremeLeverageThreshold ? numHeavyLongItems + 1 : numHeavyLongItems, 0) >= 2;
+
+    const truncateTimestamp = (timestamp) => parseInt(timestamp / 1000);
 
     const sendMsg = async function (msg) {
         if (msg) {
@@ -52,27 +44,78 @@ async function sendTelegramMessages() {
         }
     }
 
-    const buildTelegramMsg = function (isSustainedHeavyLongs, isSustainedHeavyShorts, isExtremeLongs, isExtremeShorts) {
+    const buildTelegramMsg = function (
+        allPositionsData,
+        isShortLongDiffFlippedSign,
+        isSustainedHeavyLongs,
+        isSustainedHeavyShorts,
+        isExtremeLongs,
+        isExtremeShorts
+    ) {
         let msg = "";
-        if (isSustainedHeavyLongs || isSustainedHeavyShorts || isExtremeLongs || isExtremeShorts) {
+        const lastPositionData = allPositionsData[allPositionsData.length - 1];
+        const latestTimestamp = truncateTimestamp(allPositionsData[allPositionsData.length - 1].timestamp);
+        const shortLongDiffPercentThreshold = 5;
+        const allPositionsDataReverse = allPositionsData.reverse();
+        const hourAwayFromLatestItem =
+            allPositionsData[allPositionsDataReverse.findIndex(item => ((latestTimestamp - truncateTimestamp(item.timestamp)) / 3600) > 1)];
+        const shortLongDiffPercent1h = Math.ceil((lastPositionData.shortLongDiff - hourAwayFromLatestItem.shortLongDiff) / hourAwayFromLatestItem.shortLongDiff * 100);
+        const isShortLongDiffPercentExtreme = Math.abs(shortLongDiffPercent1h) > shortLongDiffPercentThreshold;
+
+        if (isShortLongDiffPercentExtreme || isShortLongDiffFlippedSign || isSustainedHeavyLongs || isSustainedHeavyShorts || isExtremeLongs || isExtremeShorts) {
+            const dayAwayFromLatestItem =
+                allPositionsData[allPositionsDataReverse.findIndex(item => ((latestTimestamp - truncateTimestamp(item.timestamp)) / 3600) > 24)];
+            const latestTotalVolume = allPositionsData[allPositionsData.length - 1].shortVolume + allPositionsData[allPositionsData.length - 1].longVolume;
+            const dayAwayTotalVolume = dayAwayFromLatestItem.shortVolume + dayAwayFromLatestItem.longVolume;
+            const shortLongDiffPercent24h = Math.ceil(((lastPositionData.shortLongDiff - dayAwayFromLatestItem.shortLongDiff) / dayAwayFromLatestItem.shortLongDiff) * 100);
+            const volumeTotalsPercent24h = Math.ceil(((latestTotalVolume - dayAwayTotalVolume) / dayAwayTotalVolume) * 100);
+
             const ratio = parseFloat(lastPositionData.shortVolume / lastPositionData.longVolume).toFixed(2);
             const alertEmoji = "\u26A0\uFE0F";
             const suprisedEmoji = "\uD83D\uDE32";
+            const debugModeMsg = DEBUG_MODE ? ` (this is a test please ignore)` : '';
+            const shortLongDiffSignMsg =
+                lastPositionData.shortVolume > lastPositionData.longVolume ? "Shorts are now outnumbering Longs" : "Longs are now outnumbering Shorts";
             const msgTitle =
                 (isExtremeLongs, isExtremeShorts) =>
-                    `${alertEmoji} <b><u><i>${isExtremeLongs || isExtremeShorts ? `HIGH ` : ``}ALERT ${DEBUG_MODE ? ` (this is a test please ignore)` : ''}</i></u></b> ${alertEmoji}\n`;
+                    `${alertEmoji} <b><u><i>${isExtremeLongs || isExtremeShorts ? `HIGH ` : ``}ALERT ${debugModeMsg}</i></u></b> ${alertEmoji}\n`;
+            const addPercentageSign = (percentage) => `${!!~Math.sign(percentage) ? '+' : ''}${percentage}%`;
             const msgStats = (shortVolume, longVolume, shortLongDiff, ratio) => {
-                let msg1 = '\n\n';
-                msg1 += `<pre>`;
-                msg1 += `Short Volume    $${prettifyNum(shortVolume)}   \n`;
-                msg1 += `Long Volume     $${prettifyNum(longVolume)}    \n`;
-                msg1 += `S/L Difference  $${prettifyNum(shortLongDiff)} ${isExtremeLongs ? suprisedEmoji : ''} \n`;
-                msg1 += `S/L Ratio       ${ratio}\n`;
-                msg1 += `</pre>`
+                let msg = '\n\n';
+                msg += `<pre>`;
+                msg += `Short Volume            $${prettifyNum(shortVolume)}   \n`;
+                msg += `Long Volume             $${prettifyNum(longVolume)}    \n`;
+                msg += `Total Volume (24hr)     $${prettifyNum(shortVolume + longVolume)} (${addPercentageSign(volumeTotalsPercent24h)})    \n`;
+                msg += `S/L Difference (24hr)   $${prettifyNum(shortLongDiff)} (${addPercentageSign(shortLongDiffPercent24h)}) ${isExtremeLongs ? suprisedEmoji : ''} \n`;
+                // msg += `S/L Diff Std Deviation  $${prettifyNum(parseInt(shortLongDiffStandardDeviation))}\n`;
+                msg += `S/L Ratio                ${ratio}\n`;
+                msg += `</pre>`
 
-                return msg1;
+                return msg;
             }
 
+            if (Math.abs(shortLongDiffPercent1h) > shortLongDiffPercentThreshold) {
+                msg += msgTitle(false, false);
+                msg += `\n<b><u><i>S/L DIFFERENCE VOLATILITY</i></u></b>: ${addPercentageSign(shortLongDiffPercent1h)} in the past hour`;
+                setLastMsg(SL_DIFF_SIGN_FLIP);
+                msg += msgStats(
+                    lastPositionData.shortVolume,
+                    lastPositionData.longVolume,
+                    lastPositionData.shortLongDiff,
+                    ratio
+                );
+            }
+            if (isShortLongDiffFlippedSign) {
+                msg += msgTitle(false, false);
+                msg += `\n<b><u><i>RATIO FLIPPED</i></u></b>: ${shortLongDiffSignMsg}`;
+                setLastMsg(SL_DIFF_SIGN_FLIP);
+                msg += msgStats(
+                    lastPositionData.shortVolume,
+                    lastPositionData.longVolume,
+                    lastPositionData.shortLongDiff,
+                    ratio
+                );
+            }
             if (isSustainedHeavyLongs || isSustainedHeavyShorts) {
                 if (isSustainedHeavyLongs && lastMsgStatus !== MSG_HEAVY_LONGS) {
                     msg += msgTitle(isExtremeLongs, isExtremeShorts);
@@ -134,8 +177,55 @@ async function sendTelegramMessages() {
         return msg;
     }
 
-    const msg = buildTelegramMsg(isSustainedHeavyLongs, isSustainedHeavyShorts, isExtremeLongs, isExtremeShorts);
+    const allPositionsData = await getPositionsData();
+    const allPositionsShortLongDiffMean =
+        allPositionsData
+            .reduce((previousValue, currentValue) => previousValue + parseInt(currentValue.shortLongDiff), 0) / allPositionsData.length;
+    const latestPositionData = allPositionsData.slice(allPositionsData.length - 10);
 
+    /* standard deviation */
+    const varianceDataPoints = allPositionsData.map(dataPoint => {
+        const variance = parseInt(dataPoint.shortLongDiff - allPositionsShortLongDiffMean);
+        return variance * variance;
+    });
+    const sumOfVariance = varianceDataPoints.reduce((previousValue, currentValue) => previousValue + currentValue, 0);
+    const shortLongDiffStandardDeviation = Math.sqrt(sumOfVariance / (allPositionsData.length - 1));
+
+    /* alert checks */
+    const isSustainedHeavyLongs = latestPositionData.reduce(
+        (numHeavyLongItems, currentItem) => currentItem.shortLongDiff < -leverageThreshold ? numHeavyLongItems + 1 : numHeavyLongItems, 0) >= 5;
+    const isExtremeLongs = DEBUG_MODE ? true : latestPositionData.reduce(
+        (numHeavyLongItems, currentItem) => currentItem.shortLongDiff < -extremeLeverageThreshold ? numHeavyLongItems + 1 : numHeavyLongItems, 0) >= 2;
+    const isSustainedHeavyShorts = latestPositionData.reduce(
+        (numHeavyLongItems, currentItem) => currentItem.shortLongDiff > leverageThreshold ? numHeavyLongItems + 1 : numHeavyLongItems, 0) >= 5;
+    const isExtremeShorts = latestPositionData.reduce(
+        (numHeavyLongItems, currentItem) => currentItem.shortLongDiff > extremeLeverageThreshold ? numHeavyLongItems + 1 : numHeavyLongItems, 0) >= 2;
+    const latestFiftyData = allPositionsData.slice(1, 50);
+    const isShortLongDiffFlippedSign = latestFiftyData
+        .some(
+            (item, index) => {
+                const currentSign = Math.sign(item.shortLongDiff);
+                const previousSign = !!latestFiftyData[index - 1] ? Math.sign(latestFiftyData[index - 1].shortLongDiff) : currentSign;
+
+                return currentSign !== previousSign;
+            }
+        );
+
+    const msg = buildTelegramMsg(
+        allPositionsData,
+        isShortLongDiffFlippedSign,
+        isSustainedHeavyLongs,
+        isSustainedHeavyShorts,
+        isExtremeLongs,
+        isExtremeShorts
+    );
+
+    // console.log('dayAwayShortLongDiff: ', dayAwayShortLongDiff);
+    // console.log('shortLongDiffPercent24h: ', shortLongDiffPercent24h);
+    // console.log('latestTotalVolume: ', latestTotalVolume);
+    // console.log('dayAwayTotalVolume: ', dayAwayTotalVolume);
+    // console.log('volumeTotalsPercent24h: ', volumeTotalsPercent24h);
+    console.log('isShortLongDiffFlippedSign: ', isShortLongDiffFlippedSign);
     console.log('isSustainedHeavyLongs: ', isSustainedHeavyLongs);
     console.log('isExtremeLongs: ', isExtremeLongs);
     console.log('isSustainedHeavyShorts: ', isSustainedHeavyShorts);
@@ -150,7 +240,7 @@ async function sendTelegramMessages() {
         })
         .then(async (browser) => {
             const page = await browser.newPage();
-            const url = remoteChartUrl;
+            const url = `http://${remoteChartUrl}`;
 
             await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 });
             setTimeout(async function () {

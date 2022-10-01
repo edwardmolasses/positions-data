@@ -26,8 +26,7 @@ app.get('/express_backend', (req, res) => { //Line 9
 });
 
 app.get('/api/getContentfulNumOfEntries', async (req, res) => {
-  const numOfEntries = await getContentfulNumOfEntries()
-  // console.log('numOfEntries: ', numOfEntries);
+  const numOfEntries = await getContentfulNumOfEntries();
   res.send({ "numOfEntries": numOfEntries });
 });
 

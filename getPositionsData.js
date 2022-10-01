@@ -39,15 +39,17 @@ async function getAllPositionsData() {
         }
     );
     const getAllContentfulEntries = async function () {
-        const items = await Promise.all(Array.from(Array(Math.ceil(numOfEntries / 1000)).keys()).map(async element => {
-            const response = await scopedPlainClient.entry.getMany({
-                query: {
-                    skip: element * 1000,
-                    limit: 1000,
-                },
-            });
-            return response.items;
-        }));
+        const items = await Promise.all(
+            Array.from(Array(Math.ceil(numOfEntries / 1000)).keys())
+                .map(async element => {
+                    const response = await scopedPlainClient.entry.getMany({
+                        query: {
+                            skip: element * 1000,
+                            limit: 1000,
+                        },
+                    });
+                    return response.items;
+                }));
 
         return [].concat.apply([], items)
             .map(function (item) {
