@@ -15,6 +15,7 @@ const MSG_HEAVY_SHORTS = "SUSTAINED HEAVY SHORTS";
 const MSG_EXTREME_LONGS = "SUSTAINED EXTREME LONGS";
 const MSG_EXTREME_SHORTS = "SUSTAINED EXTREME SHORTS";
 const SL_DIFF_SIGN_FLIP = "SL DIFF SIGN FLIP";
+const SL_1H_EXTREME_CHANGE = "SL 1H EXTREME CHANGE";
 const millionMultiplier = 1000000;
 const leverageThreshold = 50 * millionMultiplier;
 const extremeLeverageThreshold = 70 * millionMultiplier;
@@ -44,6 +45,36 @@ async function sendTelegramMessages() {
         }
     }
 
+    const getTelegramMsgBuildVars = function (allPositionsData) {
+        const shortLongDiffPercentThreshold = 5;
+
+        const lastPositionData = allPositionsData[allPositionsData.length - 1];
+        const latestTimestamp = truncateTimestamp(allPositionsData[allPositionsData.length - 1].timestamp);
+        const allPositionsDataReverse = allPositionsData.reverse();
+
+        const hourAwayFromLatestItem =
+            allPositionsData[allPositionsDataReverse.findIndex(item => ((latestTimestamp - truncateTimestamp(item.timestamp)) / 3600) > 1)];
+        const shortLongDiffPercent1h = Math.ceil((lastPositionData.shortLongDiff - hourAwayFromLatestItem.shortLongDiff) / hourAwayFromLatestItem.shortLongDiff * 100);
+        const isShortLongDiffPercentExtreme = Math.abs(shortLongDiffPercent1h) > shortLongDiffPercentThreshold;
+
+        const dayAwayFromLatestItem =
+            allPositionsData[allPositionsDataReverse.findIndex(item => ((latestTimestamp - truncateTimestamp(item.timestamp)) / 3600) > 24)];
+        const latestTotalVolume = allPositionsData[allPositionsData.length - 1].shortVolume + allPositionsData[allPositionsData.length - 1].longVolume;
+        const dayAwayTotalVolume = dayAwayFromLatestItem.shortVolume + dayAwayFromLatestItem.longVolume;
+        const shortLongDiffPercent24h = Math.ceil(((lastPositionData.shortLongDiff - dayAwayFromLatestItem.shortLongDiff) / dayAwayFromLatestItem.shortLongDiff) * 100);
+        const volumeTotalsPercent24h = Math.ceil(((latestTotalVolume - dayAwayTotalVolume) / dayAwayTotalVolume) * 100);
+        const ratio = parseFloat(lastPositionData.shortVolume / lastPositionData.longVolume).toFixed(2);
+
+        return {
+            'lastPositionData': lastPositionData,
+            'shortLongDiffPercent1h': shortLongDiffPercent1h,
+            'isShortLongDiffPercentExtreme': isShortLongDiffPercentExtreme,
+            'shortLongDiffPercent24h': shortLongDiffPercent24h,
+            'volumeTotalsPercent24h': volumeTotalsPercent24h,
+            'ratio': ratio
+        }
+    }
+
     const buildTelegramMsg = function (
         allPositionsData,
         isShortLongDiffFlippedSign,
@@ -53,34 +84,25 @@ async function sendTelegramMessages() {
         isExtremeShorts
     ) {
         let msg = "";
-        const lastPositionData = allPositionsData[allPositionsData.length - 1];
-        const latestTimestamp = truncateTimestamp(allPositionsData[allPositionsData.length - 1].timestamp);
-        const shortLongDiffPercentThreshold = 5;
-        const allPositionsDataReverse = allPositionsData.reverse();
-        const hourAwayFromLatestItem =
-            allPositionsData[allPositionsDataReverse.findIndex(item => ((latestTimestamp - truncateTimestamp(item.timestamp)) / 3600) > 1)];
-        const shortLongDiffPercent1h = Math.ceil((lastPositionData.shortLongDiff - hourAwayFromLatestItem.shortLongDiff) / hourAwayFromLatestItem.shortLongDiff * 100);
-        const isShortLongDiffPercentExtreme = Math.abs(shortLongDiffPercent1h) > shortLongDiffPercentThreshold;
+        const alertEmoji = "\u26A0\uFE0F";
+        const suprisedEmoji = "\uD83D\uDE32";
+        const { lastPositionData,
+            shortLongDiffPercent1h,
+            isShortLongDiffPercentExtreme,
+            shortLongDiffPercent24h,
+            volumeTotalsPercent24h,
+            ratio } = getTelegramMsgBuildVars(allPositionsData);
 
         if (isShortLongDiffPercentExtreme || isShortLongDiffFlippedSign || isSustainedHeavyLongs || isSustainedHeavyShorts || isExtremeLongs || isExtremeShorts) {
-            const dayAwayFromLatestItem =
-                allPositionsData[allPositionsDataReverse.findIndex(item => ((latestTimestamp - truncateTimestamp(item.timestamp)) / 3600) > 24)];
-            const latestTotalVolume = allPositionsData[allPositionsData.length - 1].shortVolume + allPositionsData[allPositionsData.length - 1].longVolume;
-            const dayAwayTotalVolume = dayAwayFromLatestItem.shortVolume + dayAwayFromLatestItem.longVolume;
-            const shortLongDiffPercent24h = Math.ceil(((lastPositionData.shortLongDiff - dayAwayFromLatestItem.shortLongDiff) / dayAwayFromLatestItem.shortLongDiff) * 100);
-            const volumeTotalsPercent24h = Math.ceil(((latestTotalVolume - dayAwayTotalVolume) / dayAwayTotalVolume) * 100);
-
-            const ratio = parseFloat(lastPositionData.shortVolume / lastPositionData.longVolume).toFixed(2);
-            const alertEmoji = "\u26A0\uFE0F";
-            const suprisedEmoji = "\uD83D\uDE32";
             const debugModeMsg = DEBUG_MODE ? ` (this is a test please ignore)` : '';
             const shortLongDiffSignMsg =
                 lastPositionData.shortVolume > lastPositionData.longVolume ? "Shorts are now outnumbering Longs" : "Longs are now outnumbering Shorts";
-            const msgTitle =
+
+            const buildMsgTitle =
                 (isExtremeLongs, isExtremeShorts) =>
                     `${alertEmoji} <b><u><i>${isExtremeLongs || isExtremeShorts ? `HIGH ` : ``}ALERT ${debugModeMsg}</i></u></b> ${alertEmoji}\n`;
             const addPercentageSign = (percentage) => `${!!~Math.sign(percentage) ? '+' : ''}${percentage}%`;
-            const msgStats = (shortVolume, longVolume, shortLongDiff, ratio) => {
+            const msgStats = (shortVolume, longVolume, shortLongDiff, ratio, volumeTotalsPercent24h, shortLongDiffPercent24h) => {
                 let msg = '\n\n';
                 msg += `<pre>`;
                 msg += `Short Volume            $${prettifyNum(shortVolume)}   \n`;
@@ -93,76 +115,55 @@ async function sendTelegramMessages() {
 
                 return msg;
             }
+            let msgTitle = '';
+            let msgDetail = '';
 
-            if (Math.abs(shortLongDiffPercent1h) > shortLongDiffPercentThreshold) {
-                msg += msgTitle(false, false);
-                msg += `\n<b><u><i>S/L DIFFERENCE VOLATILITY</i></u></b>: ${addPercentageSign(shortLongDiffPercent1h)} in the past hour`;
-                setLastMsg(SL_DIFF_SIGN_FLIP);
-                msg += msgStats(
-                    lastPositionData.shortVolume,
-                    lastPositionData.longVolume,
-                    lastPositionData.shortLongDiff,
-                    ratio
-                );
+            if (isShortLongDiffPercentExtreme) {
+                msgTitle = buildMsgTitle(false, false);
+                msgDetail += `\n<b><u><i>S/L DIFFERENCE VOLATILITY</i></u></b>:  ${addPercentageSign(shortLongDiffPercent1h)} in the past hour`;
+                setLastMsg(SL_1H_EXTREME_CHANGE);
             }
             if (isShortLongDiffFlippedSign) {
-                msg += msgTitle(false, false);
-                msg += `\n<b><u><i>RATIO FLIPPED</i></u></b>: ${shortLongDiffSignMsg}`;
+                msgTitle = buildMsgTitle(false, false);
+                msgDetail += `\n<b><u><i>RATIO FLIPPED</i></u></b>:  ${shortLongDiffSignMsg}`;
                 setLastMsg(SL_DIFF_SIGN_FLIP);
-                msg += msgStats(
-                    lastPositionData.shortVolume,
-                    lastPositionData.longVolume,
-                    lastPositionData.shortLongDiff,
-                    ratio
-                );
             }
             if (isSustainedHeavyLongs || isSustainedHeavyShorts) {
                 if (isSustainedHeavyLongs && lastMsgStatus !== MSG_HEAVY_LONGS) {
-                    msg += msgTitle(isExtremeLongs, isExtremeShorts);
-                    msg += `\nLeveraged Long positions on GMX are at high levels relative to Shorts`;
+                    msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts);
+                    msgDetail += `\nLeveraged Long positions on GMX are at high levels relative to Shorts`;
                     setLastMsg(MSG_HEAVY_LONGS);
-                    msg += msgStats(
-                        lastPositionData.shortVolume,
-                        lastPositionData.longVolume,
-                        lastPositionData.shortLongDiff,
-                        ratio
-                    );
                 }
                 if (isSustainedHeavyShorts && lastMsgStatus !== MSG_HEAVY_SHORTS) {
-                    msg += msgTitle(isExtremeLongs, isExtremeShorts);
-                    msg += `\nLeveraged Short positions on GMX are at high levels relative to Longs`;
+                    msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts);
+                    msgDetail += `\nLeveraged Short positions on GMX are at high levels relative to Longs`;
                     setLastMsg(MSG_HEAVY_SHORTS);
-                    msg += msgStats(
-                        lastPositionData.shortVolume,
-                        lastPositionData.longVolume,
-                        lastPositionData.shortLongDiff,
-                        ratio
-                    );
                 }
             }
             if (isExtremeLongs || isExtremeShorts) {
                 if (isExtremeLongs && lastMsgStatus !== MSG_EXTREME_LONGS) {
-                    msg += msgTitle(isExtremeLongs, isExtremeShorts)
-                    msg += `\nLeveraged Long Positions on GMX have hit an extreme level relative to shorts in the past hour`;
+                    msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts)
+                    msgDetail += `\nLeveraged Long Positions on GMX have hit an extreme level relative to shorts in the past hour`;
                     setLastMsg(MSG_EXTREME_LONGS);
-                    msg += msgStats(
-                        lastPositionData.shortVolume,
-                        lastPositionData.longVolume,
-                        lastPositionData.shortLongDiff,
-                        ratio
-                    );
                 }
                 if (isExtremeShorts && lastMsgStatus !== MSG_EXTREME_SHORTS) {
-                    msg += msgTitle(isExtremeLongs, isExtremeShorts)
-                    msg += `\nLeveraged Short Positions on GMX have hit an extreme level relative to longs in the past hour`;
+                    msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts)
+                    msgDetail += `\nLeveraged Short Positions on GMX have hit an extreme level relative to longs in the past hour`;
                     setLastMsg(MSG_EXTREME_SHORTS);
-                    msg += msgStats(
-                        lastPositionData.shortVolume,
-                        lastPositionData.longVolume,
-                        lastPositionData.shortLongDiff,
-                        ratio
-                    );
                 }
+            }
+
+            if (msgDetail) {
+                msg += msgTitle;
+                msg += msgDetail;
+                msg += msgStats(
+                    lastPositionData.shortVolume,
+                    lastPositionData.longVolume,
+                    lastPositionData.shortLongDiff,
+                    ratio,
+                    volumeTotalsPercent24h,
+                    shortLongDiffPercent24h
+                );
             }
         } else {
             if (lastMsgStatus === MSG_HEAVY_LONGS ||
