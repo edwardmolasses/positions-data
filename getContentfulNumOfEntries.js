@@ -22,8 +22,6 @@ async function getContentfulNumOfEntries() {
         },
     });
 
-    console.log(entries.total);
-
     return entries.total;
 }
 
