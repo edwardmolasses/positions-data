@@ -20,7 +20,7 @@ class LineChartComponent extends Component {
     latestLongVolume: 0,
     latestEthPrice: 0,
     offset: null,
-    numOfEntries: 0
+    // numOfEntries: 0
   };
 
   formatData = (data) =>
@@ -44,8 +44,8 @@ class LineChartComponent extends Component {
       return await response.json();
     }
     const fetchData = async () => {
-      const numOfEntriesResponse = await fetch('/api/getContentfulNumOfEntries');
-      const numOfEntries = await numOfEntriesResponse.json();
+      // const numOfEntriesResponse = await fetch('/api/getContentfulNumOfEntries');
+      // const numOfEntries = await numOfEntriesResponse.json();
       const rawChartData = await getChartData();
       // TODO: detect > 5% price drop within 2-3 hours of timestamped records and add drop to data for reference dots
       const chartData = this.formatData(rawChartData);
@@ -58,7 +58,7 @@ class LineChartComponent extends Component {
         latestLongVolume: latestRecord.longVolume,
         latestEthPrice: latestRecord.ethPrice,
         offset: this.gradientOffset(chartData),
-        numOfEntries: numOfEntries.numOfEntries
+        // numOfEntries: numOfEntries.numOfEntries
       });
     };
     fetchData();
@@ -75,7 +75,7 @@ class LineChartComponent extends Component {
   }
 
   render() {
-    const prettifyNum = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    const prettifyNum = (num) => !!num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : 0;
     const prettifyDate = (dateObj, showTime = true) => {
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const timeStr = showTime ? `${dateObj.getHours()}:${String(dateObj.getMinutes()).padStart(2, '0')}` : '';
@@ -149,30 +149,32 @@ class LineChartComponent extends Component {
                 ${prettifyNum(this.state.latestLongVolume)}
               </td>
             </tr>
-            <tr>
-              <td>
-                <b>ETH Price: </b>
-              </td>
-              <td style={{ textAlign: "right" }}>
-                ${prettifyNum(this.state.latestEthPrice)}
-              </td>
-            </tr>
-            <tr>
+            {!!this.state.latestEthPrice && (
+              <tr>
+                <td>
+                  <b>ETH Price: </b>
+                </td>
+                <td style={{ textAlign: "right" }}>
+                  ${prettifyNum(this.state.latestEthPrice)}
+                </td>
+              </tr>
+            )}
+            {/* <tr>
               <td>
                 <b>DB Entries: </b>
               </td>
               <td style={{ textAlign: "right" }}>
                 {prettifyNum(this.state.numOfEntries)}
               </td>
-            </tr>
+            </tr> */}
           </tbody>
         </table>
         <LineChart width={1000} height={700} data={chartData} margin={{ top: 130, right: 20, bottom: 100, left: 50 }}>
-          {this.state.rawChartData.map(entry => {
+          {/* {this.state.rawChartData.map(entry => {
             if (!!entry.percentPriceChange) {
               return <ReferenceDot x={entry.timestamp} y={entry.shortLongDiff} r={5} fill="red" stroke="none" />;
             }
-          })}
+          })} */}
           <ReferenceLine y={0} stroke="orange" strokeWidth={2} strokeDasharray="3 3" />
           <ReferenceLine y={-50000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
           <ReferenceLine y={50000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
