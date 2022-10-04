@@ -1,14 +1,17 @@
 const getPositionsData = require('./getPositionsData');
-const { TelegramClient } = require("telegram");
+const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const puppeteer = require("puppeteer");
 
 const DEBUG_MODE = false;
 const peer = 'edwardmolasses';
+// const peer = 'EdwardMolassesChannel';
+// const peer = 'LeverageRatioAlerts';
 // const peer = 'robertplankton';
 const TG_API_ID = parseInt(process.env.TG_API_ID);
 const TG_API_HASH = process.env.TG_API_HASH;
 const TG_AUTH_KEY = process.env.TG_AUTH_KEY;
+// const TG_AUTH_KEY = process.env.TG_BOT_AUTH_KEY;
 const MSG_NO_ALERT = "NO ALERT";
 const MSG_HEAVY_LONGS = "SUSTAINED HEAVY LONGS";
 const MSG_HEAVY_SHORTS = "SUSTAINED HEAVY SHORTS";
@@ -16,6 +19,12 @@ const MSG_EXTREME_LONGS = "SUSTAINED EXTREME LONGS";
 const MSG_EXTREME_SHORTS = "SUSTAINED EXTREME SHORTS";
 const SL_DIFF_SIGN_FLIP = "SL DIFF SIGN FLIP";
 const SL_1H_EXTREME_CHANGE = "SL 1H EXTREME CHANGE";
+
+const alertEmoji = "\u26A0\uFE0F";
+const suprisedEmoji = "\uD83D\uDE32";
+const bearEmoji = "\uD83D\uDC3B";
+const bullEmoji = "\uD83D\uDC02";
+
 const millionMultiplier = 1000000;
 const leverageThreshold = 50 * millionMultiplier;
 const extremeLeverageThreshold = 70 * millionMultiplier;
@@ -31,7 +40,7 @@ async function sendTelegramMessages() {
 
     const truncateTimestamp = (timestamp) => parseInt(timestamp / 1000);
 
-    const sendMsg = async function (msg) {
+    const sendMsgByBot = async function (msg) {
         if (msg) {
             const session = new StringSession(TG_AUTH_KEY); // You should put your string session here
             const client = new TelegramClient(session, TG_API_ID, TG_API_HASH, {});
@@ -46,7 +55,7 @@ async function sendTelegramMessages() {
     }
 
     const getTelegramMsgBuildVars = function (allPositionsData) {
-        const shortLongDiffPercentThreshold = 5;
+        const shortLongDiffPercentThreshold = 50;
 
         const lastPositionData = allPositionsData[allPositionsData.length - 1];
         const latestTimestamp = truncateTimestamp(allPositionsData[allPositionsData.length - 1].timestamp);
@@ -84,8 +93,6 @@ async function sendTelegramMessages() {
         isExtremeShorts
     ) {
         let msg = "";
-        const alertEmoji = "\u26A0\uFE0F";
-        const suprisedEmoji = "\uD83D\uDE32";
         const { lastPositionData,
             shortLongDiffPercent1h,
             isShortLongDiffPercentExtreme,
@@ -98,6 +105,8 @@ async function sendTelegramMessages() {
             const shortLongDiffSignMsg =
                 lastPositionData.shortVolume > lastPositionData.longVolume ? "Shorts are now outnumbering Longs" : "Longs are now outnumbering Shorts";
 
+            const isShortLongDiffUnbalanced = allPositionsData.shortLongDiff > 30 * millionMultiplier || allPositionsData.shortLongDiff < -30 * millionMultiplier;
+            const isSignNegative = (val) => Math.sign(val) === '-';
             const buildMsgTitle =
                 (isExtremeLongs, isExtremeShorts) =>
                     `${alertEmoji} <b><u><i>${isExtremeLongs || isExtremeShorts ? `HIGH ` : ``}ALERT ${debugModeMsg}</i></u></b> ${alertEmoji}\n`;
@@ -105,12 +114,11 @@ async function sendTelegramMessages() {
             const msgStats = (shortVolume, longVolume, shortLongDiff, ratio, volumeTotalsPercent24h, shortLongDiffPercent24h) => {
                 let msg = '\n\n';
                 msg += `<pre>`;
-                msg += `Short Volume            $${prettifyNum(shortVolume)}   \n`;
-                msg += `Long Volume             $${prettifyNum(longVolume)}    \n`;
-                msg += `Total Volume (24hr)     $${prettifyNum(shortVolume + longVolume)} (${addPercentageSign(volumeTotalsPercent24h)})    \n`;
-                msg += `S/L Difference (24hr)   $${prettifyNum(shortLongDiff)} (${addPercentageSign(shortLongDiffPercent24h)}) ${isExtremeLongs ? suprisedEmoji : ''} \n`;
+                msg += `Short Volume   $${prettifyNum(shortVolume)}   \n`;
+                msg += `Long Volume    $${prettifyNum(longVolume)}    \n`;
+                msg += `S/L Difference $${prettifyNum(shortLongDiff)} (${addPercentageSign(shortLongDiffPercent24h)}) ${isExtremeLongs ? suprisedEmoji : ''}  \n`;
+                msg += `Total Volume   $${prettifyNum(shortVolume + longVolume)} (${addPercentageSign(volumeTotalsPercent24h)})    \n`;
                 // msg += `S/L Diff Std Deviation  $${prettifyNum(parseInt(shortLongDiffStandardDeviation))}\n`;
-                msg += `S/L Ratio                ${ratio}\n`;
                 msg += `</pre>`
 
                 return msg;
@@ -118,12 +126,18 @@ async function sendTelegramMessages() {
             let msgTitle = '';
             let msgDetail = '';
 
-            if (isShortLongDiffPercentExtreme) {
+            if (isShortLongDiffUnbalanced && isShortLongDiffPercentExtreme && lastMsgStatus !== SL_1H_EXTREME_CHANGE) {
+                const biggerVol = isSignNegative(shortLongDiffPercent1h) ? 'long' : 'short';
+                const smallerVol = isSignNegative(shortLongDiffPercent1h) ? 'short' : 'long';
+                const feeling = isSignNegative(shortLongDiffPercent1h) ? 'bull' : 'bear';
+                const emoji = isSignNegative(shortLongDiffPercent1h) ? bullEmoji : bearEmoji;
+
                 msgTitle = buildMsgTitle(false, false);
-                msgDetail += `\n<b><u><i>S/L DIFFERENCE VOLATILITY</i></u></b>:  ${addPercentageSign(shortLongDiffPercent1h)} in the past hour`;
+                msgDetail += `\n<b><u><i>S/L DIFFERENCE VOLATILITY</i></u></b>:  ${addPercentageSign(shortLongDiffPercent1h)} in the past hour. `;
+                msgDetail += `Traders are <b><i>${biggerVol}ing</i></b> more than <b><i>${smallerVol}ing</i></b>, meaning they are getting ${feeling}ish\n${emoji}${emoji}${emoji}`;
                 setLastMsg(SL_1H_EXTREME_CHANGE);
             }
-            if (isShortLongDiffFlippedSign) {
+            if (isShortLongDiffFlippedSign && lastMsgStatus !== SL_DIFF_SIGN_FLIP) {
                 msgTitle = buildMsgTitle(false, false);
                 msgDetail += `\n<b><u><i>RATIO FLIPPED</i></u></b>:  ${shortLongDiffSignMsg}`;
                 setLastMsg(SL_DIFF_SIGN_FLIP);
@@ -132,11 +146,13 @@ async function sendTelegramMessages() {
                 if (isSustainedHeavyLongs && lastMsgStatus !== MSG_HEAVY_LONGS) {
                     msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts);
                     msgDetail += `\nLeveraged Long positions on GMX are at high levels relative to Shorts`;
+                    msgDetail += `\nTraders are feeling <b><i>bullish</i></b> ${bullEmoji}${bullEmoji}${bullEmoji}`;
                     setLastMsg(MSG_HEAVY_LONGS);
                 }
                 if (isSustainedHeavyShorts && lastMsgStatus !== MSG_HEAVY_SHORTS) {
                     msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts);
                     msgDetail += `\nLeveraged Short positions on GMX are at high levels relative to Longs`;
+                    msgDetail += `\nTraders are feeling <b><i>bearish</i></b> ${bearEmoji}${bearEmoji}${bearEmoji}`;
                     setLastMsg(MSG_HEAVY_SHORTS);
                 }
             }
@@ -144,11 +160,13 @@ async function sendTelegramMessages() {
                 if (isExtremeLongs && lastMsgStatus !== MSG_EXTREME_LONGS) {
                     msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts)
                     msgDetail += `\nLeveraged Long Positions on GMX have hit an extreme level relative to shorts in the past hour`;
+                    msgDetail += `\nTraders are feeling <b><i>very bullish</i></b> ${bullEmoji}${bullEmoji}${bullEmoji}`;
                     setLastMsg(MSG_EXTREME_LONGS);
                 }
                 if (isExtremeShorts && lastMsgStatus !== MSG_EXTREME_SHORTS) {
                     msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts)
                     msgDetail += `\nLeveraged Short Positions on GMX have hit an extreme level relative to longs in the past hour`;
+                    msgDetail += `\nTraders are feeling <b><i>very bearish</i></b> ${bearEmoji}${bearEmoji}${bearEmoji}`;
                     setLastMsg(MSG_EXTREME_SHORTS);
                 }
             }
@@ -247,8 +265,7 @@ async function sendTelegramMessages() {
             setTimeout(async function () {
                 await page.screenshot({ path: chartFilename });
                 await browser.close();
-
-                await sendMsg(msg);
+                await sendMsgByBot(msg);
                 console.log('LAST MSG STATUS : ', lastMsgStatus);
             }, 10000);
         });
