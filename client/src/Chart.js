@@ -176,8 +176,10 @@ class LineChartComponent extends Component {
             }
           })} */}
           <ReferenceLine y={0} stroke="orange" strokeWidth={2} strokeDasharray="3 3" />
-          <ReferenceLine y={-50000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
-          <ReferenceLine y={50000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" />
+          <ReferenceLine y={-50000000} stroke="red" strokeWidth={2} strokeDasharray="5 5" />
+          {/* <ReferenceLine y={-50000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" /> */}
+          <ReferenceLine y={50000000} stroke="#00FF00" strokeWidth={2} strokeDasharray="5 5" />
+          {/* <ReferenceLine y={50000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" /> */}
           <ReferenceArea
             y1={-50000000}
             y2={50000000}
