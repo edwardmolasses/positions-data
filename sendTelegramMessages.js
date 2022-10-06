@@ -137,10 +137,11 @@ const buildTelegramMsg = function (
             const smallerVol = isSignNegative(shortLongDiffPercent1h) ? 'short' : 'long';
             const feeling = isSignNegative(shortLongDiffPercent1h) ? 'bull' : 'bear';
             const emoji = isSignNegative(shortLongDiffPercent1h) ? bullEmoji : bearEmoji;
+            const emptyBear = '   -   ';
 
             msgTitle = buildMsgTitle(false, false);
             msgDetail += `\n<b><u><i>S/L DIFFERENCE VOLATILITY</i></u></b>:  ${addPercentageSign(shortLongDiffPercent1h)} in the past hour. `;
-            msgDetail += `Traders are <b><i>${biggerVol}ing</i></b> more than <b><i>${smallerVol}ing</i></b>, meaning they are getting <b><i>${feeling}ish</b></i>\n\n${emoji}${emoji}`;
+            msgDetail += `Traders are <b><i>${biggerVol}ing</i></b> more than <b><i>${smallerVol}ing</i></b>, meaning they are getting <b><i>${feeling}ish</b></i>\n\n${emoji}${emoji}   -   -   - `;
             setLastMsg(SL_1H_EXTREME_CHANGE);
         }
         if (isShortLongDiffFlippedSign && lastMsgStatus !== SL_DIFF_SIGN_FLIP) {
@@ -152,14 +153,14 @@ const buildTelegramMsg = function (
             if (isSustainedHeavyLongs && lastMsgStatus !== MSG_HEAVY_LONGS) {
                 msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts);
                 msgDetail += `\nLeveraged Long positions on GMX are at high levels relative to Shorts`;
-                msgDetail += `\n\nTraders are feeling <b><i>bullish</i></b> ${bullEmoji}${bullEmoji}${GIRAFFLE_MODE ? '. If this keeps up, prepare to <b><i>SHORT</b></i>' : ''}`;
+                msgDetail += `\n\nTraders are feeling <b><i>bullish</i></b> ${bullEmoji}${bullEmoji}${bullEmoji}   -      -   `;
                 msgDetail += GIRAFFLE_MODE ? '\n\n<b><u><i>HINT</i></u></b>: If this keeps up, prepare to <b><i>SHORT</b></i>' : '';
                 setLastMsg(MSG_HEAVY_LONGS);
             }
             if (isSustainedHeavyShorts && lastMsgStatus !== MSG_HEAVY_SHORTS) {
                 msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts);
                 msgDetail += `\nLeveraged Short positions on GMX are at high levels relative to Longs`;
-                msgDetail += `\n\nTraders are feeling <b><i>bearish</i></b> ${bearEmoji}${bearEmoji}`;
+                msgDetail += `\n\nTraders are feeling <b><i>bearish</i></b> ${bearEmoji}${bearEmoji}${bearEmoji}   -      -   `;
                 msgDetail += GIRAFFLE_MODE ? '\n\n<b><u><i>HINT</i></u></b>: If this keeps up, prepare to <b><i>LONG</b></i>' : '';
                 setLastMsg(MSG_HEAVY_SHORTS);
             }
@@ -275,11 +276,18 @@ async function sendTelegramMessages() {
         isExtremeShorts
     );
 
-    console.log('isShortLongDiffFlippedSign: ', isShortLongDiffFlippedSign);
-    console.log('isSustainedHeavyLongs: ', isSustainedHeavyLongs);
-    console.log('isExtremeLongs: ', isExtremeLongs);
-    console.log('isSustainedHeavyShorts: ', isSustainedHeavyShorts);
-    console.log('isExtremeShorts: ', isExtremeShorts);
+    if (DEBUG_MODE) {
+        console.log('**************************');
+        console.log('*   DEBUG MODE ENABLED   *');
+        console.log('**************************');
+    }
+    console.table([
+        ['isShortLongDiffFlippedSign', isShortLongDiffFlippedSign],
+        ['isSustainedHeavyLongs', isSustainedHeavyLongs],
+        ['isExtremeLongs', isExtremeLongs],
+        ['isSustainedHeavyShorts', isSustainedHeavyShorts],
+        ['isExtremeShorts', isExtremeShorts],
+    ]);
 
     sendTelegramMessage(remoteChartWidth, remoteChartHeight, remoteChartUrl, chartFilename, msg, lastMsgStatus);
 }
