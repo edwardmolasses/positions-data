@@ -1,4 +1,10 @@
 module.exports = {
+    DEBUG_MODE: {
+        HOURLY: false,
+        EXTREME_LONGS: false,
+        EXTREME_SHORTS: false,
+        GIRAFFLE_MODE: true,
+    },
     ACCEPT_STRINGS: {
         defaultAccept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/png,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
         firefox92andLater: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
