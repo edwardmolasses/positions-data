@@ -26,60 +26,61 @@ const setLastMsg = (lastMsgStatusStr) => lastMsgStatus = lastMsgStatusStr;
 const prettifyNum = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const truncateTimestamp = (timestamp) => parseInt(timestamp / 1000);
 
-const getAlertMsgBuildVars = function (allPositionsData) {
-    const findLastTrend = function (positionsData) {
-        function diffHours(startTime, endTime) {
-            const differenceInMiliseconds = endTime - startTime;
-            const differenceInSeconds = differenceInMiliseconds / 1000;
-            const differenceInMinutes = differenceInSeconds / 60;
-            const differenceInHours = differenceInMinutes / 60;
+const findLastTrend = function (positionsData) {
+    function diffHours(startTime, endTime) {
+        const differenceInMiliseconds = endTime - startTime;
+        const differenceInSeconds = differenceInMiliseconds / 1000;
+        const differenceInMinutes = differenceInSeconds / 60;
+        const differenceInHours = differenceInMinutes / 60;
 
-            return differenceInHours;
-        }
-        let lastDirection = null;
-        let lastLastDirection = null;
-        let lastLastLastDirection = null;
-        let trendStartIndex = null;
-        let trendEndIndex = null;
-        let trend = null;
+        return differenceInHours;
+    }
+    let lastDirection = null;
+    let lastLastDirection = null;
+    let lastLastLastDirection = null;
+    let trendStartIndex = null;
+    let trendEndIndex = null;
+    let latestTrend = null;
 
-        for (let step = 1; step < positionsData.length - 1; step++) {
-            const index = positionsData.length - step;
-            const currPositionData = positionsData[index];
-            const prevPositionData = positionsData[index - 1];
+    for (let step = 1; step < positionsData.length - 1; step++) {
+        const index = positionsData.length - step;
+        const currPositionData = positionsData[index];
+        const prevPositionData = positionsData[index - 1];
 
-            if (lastDirection && lastLastDirection && lastLastLastDirection) {
-                if (!trendEndIndex) {
-                    if (lastDirection < 0 && lastLastDirection < 0 && lastLastLastDirection < 0) {
-                        trendEndIndex = index + 3;
-                        trend = -1;
-                    }
-                    if (lastDirection > 0 && lastLastDirection > 0 && lastLastLastDirection > 0) {
-                        trendEndIndex = index + 3;
-                        trend = 1;
-                    }
-                } else {
-                    if ((lastDirection < 0 && lastLastDirection < 0 && lastLastLastDirection < 0 && trend > 0) ||
-                        (lastDirection > 0 && lastLastDirection > 0 && lastLastLastDirection > 0 && trend < 0)) {
-                        console.log('setting end index');
-                        trendStartIndex = index + 3;
-                        break;
-                    }
+        if (lastDirection && lastLastDirection && lastLastLastDirection) {
+            if (!trendEndIndex) {
+                if (lastDirection < 0 && lastLastDirection < 0 && lastLastLastDirection < 0) {
+                    trendEndIndex = index + 3;
+                    latestTrend = -1;
+                }
+                if (lastDirection > 0 && lastLastDirection > 0 && lastLastLastDirection > 0) {
+                    trendEndIndex = index + 3;
+                    latestTrend = 1;
+                }
+            } else {
+                if ((lastDirection < 0 && lastLastDirection < 0 && lastLastLastDirection < 0 && trend > 0) ||
+                    (lastDirection > 0 && lastLastDirection > 0 && lastLastLastDirection > 0 && trend < 0)) {
+                    console.log('setting end index');
+                    trendStartIndex = index + 3;
+                    break;
                 }
             }
-
-            lastLastLastDirection = lastLastDirection;
-            lastLastDirection = lastDirection;
-            lastDirection = currPositionData.movingAverage >= prevPositionData.movingAverage ? 1 : -1;
         }
 
-        const startMovingAverage = positionsData[trendStartIndex].movingAverage;
-        const endMovingAverage = positionsData[trendEndIndex].movingAverage;
-        const percentChange = parseInt((endMovingAverage - startMovingAverage) / startMovingAverage * 100);
-        const hoursDiff = diffHours(positionsData[trendStartIndex].timestamp, positionsData[trendEndIndex].timestamp).toFixed(1);
-
-        return { trend, trendStartIndex, trendEndIndex, percentChange, hoursDiff };
+        lastLastLastDirection = lastLastDirection;
+        lastLastDirection = lastDirection;
+        lastDirection = currPositionData.movingAverage >= prevPositionData.movingAverage ? 1 : -1;
     }
+
+    const startMovingAverage = positionsData[trendStartIndex].movingAverage;
+    const endMovingAverage = positionsData[trendEndIndex].movingAverage;
+    const latestTrendPercentChange = parseInt((endMovingAverage - startMovingAverage) / startMovingAverage * 100);
+    const latestTrendHoursElapsed = diffHours(positionsData[trendStartIndex].timestamp, positionsData[trendEndIndex].timestamp).toFixed(1);
+
+    return { latestTrend, trendStartIndex, trendEndIndex, latestTrendPercentChange, latestTrendHoursElapsed };
+}
+
+const getAlertMsgBuildVars = function (allPositionsData) {
     const shortLongDiffPercentThreshold = DEBUG_MODE['HOURLY'] ? 1 : THRESHOLDS.SL_DIFF_EXTREME_PERCENT;
     const movingAverageRange = 5;
     const shortLongDiffMovingAverage = allPositionsData.map((element, index) => {
@@ -97,8 +98,7 @@ const getAlertMsgBuildVars = function (allPositionsData) {
         element.movingAverage = shortLongDiffMovingAverage[index];
         return element;
     });
-
-    const { trend, trendStartIndex, trendEndIndex, percentChange, hoursDiff } = findLastTrend(updatedAllPositionsData);
+    const { latestTrend, trendStartIndex, trendEndIndex, latestTrendPercentChange, latestTrendHoursElapsed } = findLastTrend(updatedAllPositionsData);
     console.log('trend: ', trend);
     console.log('trendStartIndex: ', trendStartIndex);
     console.log('trendEndIndex: ', trendEndIndex);
@@ -124,6 +124,11 @@ const getAlertMsgBuildVars = function (allPositionsData) {
     const ratio = parseFloat(lastPositionData.shortVolume / lastPositionData.longVolume).toFixed(2);
 
     return {
+        'latestTrend': latestTrend,
+        'trendStartIndex': trendStartIndex,
+        'trendEndIndex': trendEndIndex,
+        'latestTrendPercentChange': latestTrendPercentChange,
+        'latestTrendHoursElapsed': latestTrendHoursElapsed,
         'lastPositionData': lastPositionData,
         'shortLongDiffPercent1h': shortLongDiffPercent1h,
         'isShortLongDiffPercentExtreme': isShortLongDiffPercentExtreme,
