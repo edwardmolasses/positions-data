@@ -1,5 +1,5 @@
 const getPositionsData = require('./getPositionsData');
-const { DEBUG_MODE } = require('./constants');
+const { DEBUG_MODE, THRESHOLDS } = require('./constants');
 
 const isDebugMode = DEBUG_MODE['EXTREME_LONGS'] || DEBUG_MODE['HOURLY'] || DEBUG_MODE['EXTREME_SHORTS'];
 
@@ -19,15 +19,68 @@ const bearEmoji = "\uD83D\uDC3B";
 const bullEmoji = "\uD83D\uDC02";
 
 const millionMultiplier = 1000000;
-const leverageThreshold = 50 * millionMultiplier;
-const extremeLeverageThreshold = 70 * millionMultiplier;
+const leverageThreshold = THRESHOLDS.HIGH_LEVERAGE;
+const extremeLeverageThreshold = THRESHOLDS.EXTREME_LEVERAGE;
 
 const setLastMsg = (lastMsgStatusStr) => lastMsgStatus = lastMsgStatusStr;
 const prettifyNum = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const truncateTimestamp = (timestamp) => parseInt(timestamp / 1000);
 
 const getAlertMsgBuildVars = function (allPositionsData) {
-    const shortLongDiffPercentThreshold = DEBUG_MODE['HOURLY'] ? 1 : 50;
+    const findLastTrend = function (positionsData) {
+        function diffHours(startTime, endTime) {
+            const differenceInMiliseconds = endTime - startTime;
+            const differenceInSeconds = differenceInMiliseconds / 1000;
+            const differenceInMinutes = differenceInSeconds / 60;
+            const differenceInHours = differenceInMinutes / 60;
+
+            return differenceInHours;
+        }
+        let lastDirection = null;
+        let lastLastDirection = null;
+        let lastLastLastDirection = null;
+        let trendStartIndex = null;
+        let trendEndIndex = null;
+        let trend = null;
+
+        for (let step = 1; step < positionsData.length - 1; step++) {
+            const index = positionsData.length - step;
+            const currPositionData = positionsData[index];
+            const prevPositionData = positionsData[index - 1];
+
+            if (lastDirection && lastLastDirection && lastLastLastDirection) {
+                if (!trendEndIndex) {
+                    if (lastDirection < 0 && lastLastDirection < 0 && lastLastLastDirection < 0) {
+                        trendEndIndex = index + 3;
+                        trend = -1;
+                    }
+                    if (lastDirection > 0 && lastLastDirection > 0 && lastLastLastDirection > 0) {
+                        trendEndIndex = index + 3;
+                        trend = 1;
+                    }
+                } else {
+                    if ((lastDirection < 0 && lastLastDirection < 0 && lastLastLastDirection < 0 && trend > 0) ||
+                        (lastDirection > 0 && lastLastDirection > 0 && lastLastLastDirection > 0 && trend < 0)) {
+                        console.log('setting end index');
+                        trendStartIndex = index + 3;
+                        break;
+                    }
+                }
+            }
+
+            lastLastLastDirection = lastLastDirection;
+            lastLastDirection = lastDirection;
+            lastDirection = currPositionData.movingAverage >= prevPositionData.movingAverage ? 1 : -1;
+        }
+
+        const startMovingAverage = positionsData[trendStartIndex].movingAverage;
+        const endMovingAverage = positionsData[trendEndIndex].movingAverage;
+        const percentChange = parseInt((endMovingAverage - startMovingAverage) / startMovingAverage * 100);
+        const hoursDiff = diffHours(positionsData[trendStartIndex].timestamp, positionsData[trendEndIndex].timestamp).toFixed(1);
+
+        return { trend, trendStartIndex, trendEndIndex, percentChange, hoursDiff };
+    }
+    const shortLongDiffPercentThreshold = DEBUG_MODE['HOURLY'] ? 1 : THRESHOLDS.SL_DIFF_EXTREME_PERCENT;
     const movingAverageRange = 5;
     const shortLongDiffMovingAverage = allPositionsData.map((element, index) => {
         let movingSum = 0;
@@ -45,23 +98,13 @@ const getAlertMsgBuildVars = function (allPositionsData) {
         return element;
     });
 
-    let lastDirection = null;
-    let lastLastDirection = null;
-    let lastLastLastDirection = null;
-    for (let step = 2; step < updatedAllPositionsData.length - 1; step++) {
-        const currPositionData = updatedAllPositionsData[updatedAllPositionsData.length - step];
-        const prevPositionData = updatedAllPositionsData[updatedAllPositionsData.length - step + 1];
-
-        lastLastLastDirection = lastLastDirection;
-        lastLastDirection = lastDirection;
-        lastDirection = currPositionData.shortLongDiff > prevPositionData.shortLongDiff ? 1 : -1;
-    }
-
-    // using moving averages, 
-    // find trend before current data point
-    // find where trend changed
-    // measure percentage change from change to current data point
-    console.log(shortLongDiffMovingAverage.reverse());
+    const { trend, trendStartIndex, trendEndIndex, percentChange, hoursDiff } = findLastTrend(updatedAllPositionsData);
+    console.log('trend: ', trend);
+    console.log('trendStartIndex: ', trendStartIndex);
+    console.log('trendEndIndex: ', trendEndIndex);
+    console.log('percentChange: ', percentChange);
+    console.log('hoursDiff: ', hoursDiff);
+    // console.log(updatedAllPositionsData.map((element, index) => { element.index = index; return element; }).reverse());
 
     const lastPositionData = allPositionsData[allPositionsData.length - 1];
     const latestTimestamp = truncateTimestamp(allPositionsData[allPositionsData.length - 1].timestamp);
@@ -254,8 +297,8 @@ async function sendTelegramMessage(remoteChartWidth, remoteChartHeight, remoteCh
 async function buildMessage() {
     const allPositionsData = await getPositionsData();
     const latestPositionData = allPositionsData.slice(allPositionsData.length - 10);
-    const numSustainedOccurencesForRelevance = 4;
-    const numExtremeOccurencesForRelevance = 2;
+    const numSustainedOccurencesForRelevance = THRESHOLDS.HIGH_LEVEL_OCCURRENCES_FOR_RELEVANCE;
+    const numExtremeOccurencesForRelevance = THRESHOLDS.EXTREME_LEVEL_OCCURRENCES_FOR_RELEVANCE;
 
     /* alert checks */
     const isSustainedHeavyLongs = latestPositionData.reduce(
