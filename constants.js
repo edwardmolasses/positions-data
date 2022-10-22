@@ -2,18 +2,20 @@ const millionsMultiplier = 1000000;
 
 module.exports = {
     THRESHOLDS: {
-        LOW_TF_PERCENT: 25,
-        LOW_TF_HOURS: 4,
-        LOW_TF_EXTREME_SL_DIFF: 56 * millionsMultiplier,
+        LOW_TF_EXTREME_PERCENT: 25,
+        LOW_TF_EXTREME_MAX_HOURS: 4,
+        LOW_TF_EXTREME_SL_DIFF: 55 * millionsMultiplier,
         HIGH_LEVEL_OCCURRENCES_FOR_RELEVANCE: 4,
         EXTREME_LEVEL_OCCURRENCES_FOR_RELEVANCE: 2,
+        LOWER_HIGH_LEVERAGE: 40 * millionsMultiplier,
         HIGH_LEVERAGE: 50 * millionsMultiplier,
-        EXTREME_LEVERAGE: 70 * millionsMultiplier,
+        EXTREME_LEVERAGE: 59 * millionsMultiplier,
+        MAX_EXTREME_LEVERAGE: 85 * millionsMultiplier,
         SL_DIFF_EXTREME_PERCENT: 50
     },
     DEBUG_MODE: {
         HOURLY: false,
-        EXTREME_LONGS: false,
+        EXTREME_LONGS: true,
         EXTREME_SHORTS: false,
         GIRAFFLE_MODE: true,
     },
