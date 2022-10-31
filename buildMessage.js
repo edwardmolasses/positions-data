@@ -1,7 +1,7 @@
 const getPositionsData = require('./getPositionsData');
 const { DEBUG_MODE, THRESHOLDS } = require('./constants');
 
-const isDebugMode = DEBUG_MODE['EXTREME_LONGS'] || DEBUG_MODE['HOURLY'] || DEBUG_MODE['EXTREME_SHORTS'];
+const isDebugMode = DEBUG_MODE['EXTREME_LONGS'] || DEBUG_MODE['HOURLY'] || DEBUG_MODE['EXTREME_SHORTS'] || DEBUG_MODE['LOW_TF_LEVERAGE'];
 
 const MSG_NO_ALERT = "NO ALERT";
 const MSG_HEAVY_LONGS = "SUSTAINED HEAVY LONGS";
@@ -10,7 +10,9 @@ const MSG_EXTREME_LONGS = "SUSTAINED EXTREME LONGS";
 const MSG_EXTREME_SHORTS = "SUSTAINED EXTREME SHORTS";
 const SL_DIFF_SIGN_FLIP = "SL DIFF SIGN FLIP";
 const SL_1H_EXTREME_CHANGE = "SL 1H EXTREME CHANGE";
+const LOW_TIMEFRAME_HIGH_LEVERAGE = "LOW TIMEFRAME HIGH LEVERAGE";
 let lastMsgStatus = MSG_NO_ALERT;
+let lastMsgTimestamp = null;
 
 const alertEmoji = "\u26A0\uFE0F";
 const redEmoji = "\uD83D\uDD34";
@@ -24,24 +26,36 @@ const yellowSquare = "\uD83D\uDFE8";
 const orangeSquare = "\uD83D\uDFE7";
 const redSquare = "\uD83D\uDFE5";
 const blueSquare = "\uD83D\uDFE6";
+const blackCircle = "\u26AB";
 
 const millionMultiplier = 1000000;
+const extremeLowTimeframeLeverageConvictionLevel = 5;
 const leverageThreshold = THRESHOLDS.HIGH_LEVERAGE;
 const extremeLeverageThreshold = THRESHOLDS.EXTREME_LEVERAGE;
 
 const setLastMsg = (lastMsgStatusStr) => lastMsgStatus = lastMsgStatusStr;
+const setLastMsgTimestamp = () => lastMsgTimestamp = Date.now();
 const prettifyNum = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const truncateTimestamp = (timestamp) => parseInt(timestamp / 1000);
+const isSignNegative = (val) => Math.sign(val) === '-';
+const addPercentageSign = (percentage) => percentage !== 0 ? `${!!~Math.sign(percentage) ? '+' : ''}${percentage}%` : '0%';
+const diffHours = function (startTime, endTime) {
+    const differenceInMiliseconds = endTime - startTime;
+    const differenceInSeconds = differenceInMiliseconds / 1000;
+    const differenceInMinutes = differenceInSeconds / 60;
+    const differenceInHours = differenceInMinutes / 60;
+
+    return Math.abs(differenceInHours);
+}
+const diffMinutes = function (startTime, endTime) {
+    const differenceInMiliseconds = endTime - startTime;
+    const differenceInSeconds = differenceInMiliseconds / 1000;
+    const differenceInMinutes = differenceInSeconds / 60;
+
+    return Math.abs(differenceInMinutes);
+}
 
 const findLastTrend = function (positionsData) {
-    function diffHours(startTime, endTime) {
-        const differenceInMiliseconds = endTime - startTime;
-        const differenceInSeconds = differenceInMiliseconds / 1000;
-        const differenceInMinutes = differenceInSeconds / 60;
-        const differenceInHours = differenceInMinutes / 60;
-
-        return differenceInHours;
-    }
     let lastDirection = null;
     let lastLastDirection = null;
     let lastLastLastDirection = null;
@@ -67,7 +81,6 @@ const findLastTrend = function (positionsData) {
             } else {
                 if ((lastDirection < 0 && lastLastDirection < 0 && lastLastLastDirection < 0 && latestTrend > 0) ||
                     (lastDirection > 0 && lastLastDirection > 0 && lastLastLastDirection > 0 && latestTrend < 0)) {
-                    console.log('setting end index');
                     trendStartIndex = index + 3;
                     break;
                 }
@@ -81,7 +94,8 @@ const findLastTrend = function (positionsData) {
 
     const startMovingAverage = positionsData[trendStartIndex].movingAverage;
     const endMovingAverage = positionsData[trendEndIndex].movingAverage;
-    const latestTrendPercentChange = parseInt((endMovingAverage - startMovingAverage) / startMovingAverage * 100);
+    const latestTrendChange = endMovingAverage - startMovingAverage;
+    const latestTrendPercentChange = Math.round(latestTrendChange / THRESHOLDS.HIGH_LEVERAGE * 100);
     const latestTrendHoursElapsed = diffHours(positionsData[trendStartIndex].timestamp, positionsData[trendEndIndex].timestamp).toFixed(1);
 
     return { latestTrend, trendStartIndex, trendEndIndex, latestTrendPercentChange, latestTrendHoursElapsed };
@@ -105,12 +119,6 @@ const getAlertMsgBuildVars = function (allPositionsData) {
         element.movingAverage = shortLongDiffMovingAverage[index];
         return element;
     });
-    console.log('trend: ', trend);
-    console.log('trendStartIndex: ', trendStartIndex);
-    console.log('trendEndIndex: ', trendEndIndex);
-    console.log('percentChange: ', percentChange);
-    console.log('hoursDiff: ', hoursDiff);
-    // console.log(updatedAllPositionsData.map((element, index) => { element.index = index; return element; }).reverse());
     const lastPositionData = allPositionsData[allPositionsData.length - 1];
     const latestTimestamp = truncateTimestamp(allPositionsData[allPositionsData.length - 1].timestamp);
     const allPositionsDataReverse = allPositionsData.reverse();
@@ -124,7 +132,8 @@ const getAlertMsgBuildVars = function (allPositionsData) {
         allPositionsData[allPositionsDataReverse.findIndex(item => ((latestTimestamp - truncateTimestamp(item.timestamp)) / 3600) > 24)];
     const latestTotalVolume = allPositionsData[allPositionsData.length - 1].shortVolume + allPositionsData[allPositionsData.length - 1].longVolume;
     const dayAwayTotalVolume = dayAwayFromLatestItem.shortVolume + dayAwayFromLatestItem.longVolume;
-    const shortLongDiffPercent24h = Math.ceil(((lastPositionData.shortLongDiff - dayAwayFromLatestItem.shortLongDiff) / dayAwayFromLatestItem.shortLongDiff) * 100);
+    const shortLongDiffOver24h = lastPositionData.shortLongDiff - dayAwayFromLatestItem.shortLongDiff;
+    const shortLongDiffPercent24h = Math.round(shortLongDiffOver24h / THRESHOLDS.HIGH_LEVERAGE * 100);
     const volumeTotalsPercent24h = Math.ceil(((latestTotalVolume - dayAwayTotalVolume) / dayAwayTotalVolume) * 100);
     const ratio = parseFloat(lastPositionData.shortVolume / lastPositionData.longVolume).toFixed(2);
 
@@ -139,7 +148,21 @@ const getAlertMsgBuildVars = function (allPositionsData) {
     }
 }
 
-const buildConvictionMeter = function (level) {
+const getSentimentMeter = function (animal, level) {
+    let meter = '';
+    let animalEmoji = animal === 'bull' ? bullEmoji : bearEmoji;
+
+    for (let step = 0; step < level; step++) {
+        meter += animalEmoji;
+    }
+    for (let step = 0; step < 5 - level; step++) {
+        meter += blackSquare;
+    }
+
+    return meter;
+}
+
+const buildConvictionMeter = function (convictionLevel) {
     const meterSquares = [
         greenSquare,
         greenSquare,
@@ -153,16 +176,16 @@ const buildConvictionMeter = function (level) {
         redSquare
     ];
     let meter = '';
-    level = level > 10 ? 10 : level;
+    convictionLevel = convictionLevel > 10 ? 10 : convictionLevel;
 
-    for (let step = 0; step < level; step++) {
-        meter += meterSquares[step];
+    for (let step = 0; step < convictionLevel; step++) {
+        meter += meterSquares[step] + ' ';
     }
-    for (let step = 0; step < 10 - level; step++) {
-        meter += blackSquare;
+    for (let step = 0; step < 10 - convictionLevel; step++) {
+        meter += blackSquare + ' ';
     }
 
-    return `\n\n<b><u><i>CONVICTION LEVEL:</i></u></b>\n${meter}\n\n`;
+    return `\n\n<b><u><i>CONVICTION LEVEL (${convictionLevel} of 10):</i></u></b>\n${meter}\n\n`;
 }
 
 const getLeverageConviction = function (shortLongDiff, minorLimit, majorLimit, rangeMin, rangeMax) {
@@ -188,32 +211,120 @@ const getLowTimeframeChangeConviction = function (shortLongDiff, latestTrendPerc
     } else {
         return 0;
     }
-
 }
 
-const getSentimentMeter = function (animal, level) {
-    let meter = '';
-    let animalEmoji = animal === 'bull' ? bullEmoji : bearEmoji;
+const getHeavyLeverageMessage = function (isHeavyLongs, isHeavyShorts, sentimentLevel) {
+    const extremeBullishSentiment = 5;
+    const isExtreme = sentimentLevel >= extremeBullishSentiment ? true : false;
+    let msg = '';
+    let biggerVol;
+    let smallerVol;
+    let feeling;
 
-    for (let step = 0; step < level; step++) {
-        meter += animalEmoji;
+    if (isHeavyLongs && !isHeavyShorts) {
+        biggerVol = 'long';
+        smallerVol = 'short';
+        feeling = 'bull';
     }
-    for (let step = 0; step < 5 - level; step++) {
-        meter += blackSquare;
+    if (!isHeavyLongs && isHeavyShorts) {
+        biggerVol = 'short';
+        smallerVol = 'long';
+        feeling = 'bear';
     }
 
-    return meter;
+    msg += isExtreme
+        ? `\nLeveraged ${biggerVol.toUpperCase()} Positions on GMX have hit an extreme level relative to ${smallerVol.toUpperCase()} in the past hour`
+        : `\nLeveraged ${biggerVol.toUpperCase()} positions on GMX are at high levels relative to ${smallerVol.toUpperCase()}`;
+    msg += `\n\nTraders are feeling <b><i>${feeling}ish</i></b> \n${getSentimentMeter(feeling, sentimentLevel)}`;
+    msg += isExtreme && DEBUG_MODE['GIRAFFLE_MODE']
+        ? `\n\n<b><u><i>HINT</i></u></b>: Take a <b><i>${smallerVol.toUpperCase()} POSITION</b></i> soon`
+        : `\n\n<b><u><i>HINT</i></u></b>: If this keeps up, prepare to <b><i>${smallerVol.toUpperCase()}</b></i>`;
+
+    return msg;
 }
 
-const buildAlertMsg = function (
-    allPositionsData,
-    isShortLongDiffFlippedSign,
-    isSustainedHeavyLongs,
-    isSustainedHeavyShorts,
-    isExtremeLongs,
-    isExtremeShorts
-) {
-    let msg = "";
+const getFlippedSignMessage = function (isShortLongDiffFlippedSign, shortVolume, longVolume) {
+    const shortLongDiffSignMsg = shortVolume > longVolume ? "Shorts are now outnumbering Longs" : "Longs are now outnumbering Shorts";
+    return isShortLongDiffFlippedSign ? `\n<b><u><i>RATIO FLIPPED</i></u></b>:  ${shortLongDiffSignMsg}` : '';
+}
+
+const getLowTimeframeMessage = function (latestTrend, percentChange, timeElapsed, convictionLevel) {
+    const highConvictionLevel = 7;
+    const latestTrendSign = latestTrend > 0 ? '+' : '-';
+    const biggerVol = isSignNegative(percentChange) ? 'long' : 'short';
+    const smallerVol = isSignNegative(percentChange) ? 'short' : 'long';
+    const feeling = isSignNegative(percentChange) ? 'bull' : 'bear';
+    const isHighConviction = convictionLevel > highConvictionLevel || (DEBUG_MODE['GIRAFFLE_MODE'] && convictionLevel > highConvictionLevel);
+    let msg = '';
+
+    msg += `\n<b><u><i>S/L DIFFERENCE VOLATILITY</i></u></b>:  ${percentChange}% in the past ${timeElapsed} hour${timeElapsed > 0 ? 's' : ''}. `;
+    msg += `Traders are <b><i>${biggerVol}ing</i></b> more than <b><i>${smallerVol}ing</i></b>, meaning they are <b><i>${feeling}ish</b></i>\n\n${getSentimentMeter(feeling, 4)}\n`;
+    msg += isHighConviction ? `\n<b><u><i>HINT</i></u></b>: Take a <b><i>${smallerVol.toUpperCase()} POSITION</b></i> soon` : '';
+
+    return msg;
+}
+
+const buildMessageTitle = (isExtremeLongs, isExtremeShorts, isExtremeLowTimeframeLeverage) => {
+    const debugModeMsg = isDebugMode ? ` (this is a test please ignore)` : '';
+    const highAlert = isExtremeLongs || isExtremeShorts || isExtremeLowTimeframeLeverage;
+    const alertTypeName = highAlert ? 'HIGH ALERT' : 'ALERT';
+    const emoji = highAlert ? alertEmoji : redEmoji;
+
+    return `${emoji} <b><u><i>${alertTypeName} ${debugModeMsg}</i></u></b> ${emoji}\n`;
+}
+
+const buildDeactivatedAlertMsg = function (lastMsgStatus) {
+    let msg = '';
+
+    if (lastMsgStatus === MSG_EXTREME_LONGS || lastMsgStatus === MSG_HEAVY_LONGS) {
+        msg += 'Leveraged LONGS are back to normal levels. '
+    }
+    if (lastMsgStatus === MSG_EXTREME_SHORTS || lastMsgStatus === MSG_HEAVY_SHORTS) {
+        msg += 'Leveraged SHORTS are back to normal levels. '
+    }
+    if (lastMsgStatus === LOW_TIMEFRAME_HIGH_LEVERAGE) {
+        msg += 'Leveraged Positions are back to normal levels. '
+    }
+
+    msg += 'Alert is no longer in effect.'
+
+    return msg;
+}
+
+const getMessageStats = (
+    shortVolume,
+    longVolume,
+    shortLongDiff,
+    volumeTotalsPercent24h,
+    shortLongDiffPercent24h,
+    isExtremeLeverage,
+    latestTrendPercentChange,
+    latestTrendHoursElapsed
+) => {
+    const extremeLowTimeframeLeverageEmoji = latestTrendPercentChange > 0 ? bearEmoji : latestTrendPercentChange < 0 ? bullEmoji : '';
+    const shortLongDiffPercent24hEmoji = shortLongDiffPercent24h > 0 ? bearEmoji : shortLongDiffPercent24h < 0 ? bullEmoji : '';
+    let msg = '\n';
+
+    msg += `<pre>`;
+    msg += `Short Volume   $${prettifyNum(shortVolume)}\n`;
+    msg += `Long Volume    $${prettifyNum(longVolume)}\n`;
+    msg += `S/L Difference $${prettifyNum(shortLongDiff)}\n`;
+    msg += ` Diff Latest%  ${addPercentageSign(latestTrendPercentChange)} (${latestTrendHoursElapsed} hour${latestTrendHoursElapsed > 0 ? 's' : ''}) ${extremeLowTimeframeLeverageEmoji}\n`;
+    msg += ` Diff 24h%     ${addPercentageSign(shortLongDiffPercent24h)} ${shortLongDiffPercent24hEmoji} ${isExtremeLeverage ? suprisedEmoji : ''}\n`;
+    msg += `Total Volume   $${prettifyNum(shortVolume + longVolume)} (${addPercentageSign(volumeTotalsPercent24h)})\n`;
+    // msg += `S/L Diff Std Deviation  $${prettifyNum(parseInt(shortLongDiffStandardDeviation))}\n`;
+    msg += `</pre>`
+
+    return msg;
+}
+
+const buildDailyDigest = async function (allPositionsData) {
+    const dateObj = new Date();
+    const pst = dateObj.toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles',
+        month: 'long',
+        day: 'numeric'
+    });
     const { lastPositionData,
         shortLongDiffPercent1h,
         isShortLongDiffPercentExtreme,
@@ -226,132 +337,145 @@ const buildAlertMsg = function (
         trendEndIndex,
         latestTrendPercentChange,
         latestTrendHoursElapsed } = findLastTrend(updatedAllPositionsData);
-
-
-    if (isShortLongDiffPercentExtreme || isShortLongDiffFlippedSign || isSustainedHeavyLongs || isSustainedHeavyShorts || isExtremeLongs || isExtremeShorts) {
-        const debugModeMsg = isDebugMode ? ` (this is a test please ignore)` : '';
-        const shortLongDiffSignMsg =
-            lastPositionData.shortVolume > lastPositionData.longVolume ? "Shorts are now outnumbering Longs" : "Longs are now outnumbering Shorts";
-
-        const isShortLongDiffUnbalanced =
-            DEBUG_MODE['HOURLY'] ? true : allPositionsData.shortLongDiff > 30 * millionMultiplier || allPositionsData.shortLongDiff < -30 * millionMultiplier;
-        const isSignNegative = (val) => Math.sign(val) === '-';
-        const buildMsgTitle =
-            (isExtremeLongs, isExtremeShorts) => {
-                const highAlert = isExtremeLongs || isExtremeShorts;
-                const alertTypeName = highAlert ? 'HIGH ALERT' : 'ALERT';
-                const emoji = highAlert ? alertEmoji : redEmoji;
-
-                return `${emoji} <b><u><i>${alertTypeName} ${debugModeMsg}</i></u></b> ${emoji}\n`;
-            }
-        const addPercentageSign = (percentage) => `${!!~Math.sign(percentage) ? '+' : ''}${percentage}%`;
-        const msgStats = (shortVolume, longVolume, shortLongDiff, ratio, volumeTotalsPercent24h, shortLongDiffPercent24h) => {
-            let msg = '\n\n';
-            msg += `<pre>`;
-            msg += `Short Volume   $${prettifyNum(shortVolume)}   \n`;
-            msg += `Long Volume    $${prettifyNum(longVolume)}    \n`;
-            msg += `S/L Difference $${prettifyNum(shortLongDiff)} (${addPercentageSign(shortLongDiffPercent24h)}) ${isExtremeLongs ? suprisedEmoji : ''}  \n`;
-            msg += `Total Volume   $${prettifyNum(shortVolume + longVolume)} (${addPercentageSign(volumeTotalsPercent24h)})    \n`;
-            // msg += `S/L Diff Std Deviation  $${prettifyNum(parseInt(shortLongDiffStandardDeviation))}\n`;
-            msg += `</pre>`
-
-            return msg;
-        }
-        let msgTitle = '';
-        let msgDetail = '';
-        const sustainedHeavyLeverageConviction = getLeverageConviction(
-            lastPositionData.shortLongDiff,
-            THRESHOLDS.LOWER_HIGH_LEVERAGE,
-            THRESHOLDS.EXTREME_LEVERAGE,
-            3,
-            7
-        );
-        const extremeLeverageConviction = getLeverageConviction(
+    const extremeLeverageConviction = DEBUG_MODE['EXTREME_LONGS']
+        ? THRESHOLDS.EXTREME_LONGS_THRESHOLD
+        : getLeverageConviction(
             lastPositionData.shortLongDiff,
             THRESHOLDS.EXTREME_LEVERAGE,
             THRESHOLDS.MAX_EXTREME_LEVERAGE,
             8,
             10
         );
-        const lowTimeframeLeverageConviction =
-            getLowTimeframeChangeConviction(lastPositionData.shortLongDiff, latestTrendPercentChange, latestTrendHoursElapsed);
-        console.log('sustainedHeavyLeverageConviction: ', sustainedHeavyLeverageConviction);
-        console.log('lowTimeframeLeverageConviction: ', lowTimeframeLeverageConviction);
-        console.log('extremeLeverageConviction: ', extremeLeverageConviction);
+    const sustainedHeavyLeverageConviction = getLeverageConviction(
+        lastPositionData.shortLongDiff,
+        THRESHOLDS.LOWER_HIGH_LEVERAGE,
+        THRESHOLDS.EXTREME_LEVERAGE,
+        3,
+        7
+    );
+    const lowTimeframeLeverageConviction = DEBUG_MODE['LOW_TF_LEVERAGE'] ? 8 : getLowTimeframeChangeConviction(lastPositionData.shortLongDiff, latestTrendPercentChange, latestTrendHoursElapsed);
+    let msgTitle = `<b><u><i>DAILY DIGEST for ${pst}</i></u></b>\n`;
+    let msgDetail = '';
 
-        if (isShortLongDiffUnbalanced && isShortLongDiffPercentExtreme && lastMsgStatus !== SL_1H_EXTREME_CHANGE) {
-            const biggerVol = isSignNegative(shortLongDiffPercent1h) ? 'long' : 'short';
-            const smallerVol = isSignNegative(shortLongDiffPercent1h) ? 'short' : 'long';
-            const feeling = isSignNegative(shortLongDiffPercent1h) ? 'bull' : 'bear';
-            const emoji = isSignNegative(shortLongDiffPercent1h) ? bullEmoji : bearEmoji;
+    // msgDetail += buildConvictionMeter(Math.max(extremeLeverageConviction, sustainedHeavyLeverageConviction, lowTimeframeLeverageConviction));
+    msgDetail += getMessageStats(
+        lastPositionData.shortVolume,
+        lastPositionData.longVolume,
+        lastPositionData.shortLongDiff,
+        volumeTotalsPercent24h,
+        shortLongDiffPercent24h,
+        extremeLeverageConviction,
+        latestTrendPercentChange,
+        latestTrendHoursElapsed
+    );
 
-            msgTitle = buildMsgTitle(false, false);
-            msgDetail += `\n<b><u><i>S/L DIFFERENCE VOLATILITY</i></u></b>:  ${addPercentageSign(shortLongDiffPercent1h)} in the past hour. `;
-            msgDetail += `Traders are <b><i>${biggerVol}ing</i></b> more than <b><i>${smallerVol}ing</i></b>, meaning they are getting <b><i>${feeling}ish</b></i>\n\n${getSentimentMeter(feeling, 2)}\n`;
-            setLastMsg(SL_1H_EXTREME_CHANGE);
-        }
-        if (isShortLongDiffFlippedSign && lastMsgStatus !== SL_DIFF_SIGN_FLIP) {
-            msgTitle = buildMsgTitle(false, false);
-            msgDetail += `\n<b><u><i>RATIO FLIPPED</i></u></b>:  ${shortLongDiffSignMsg}`;
-            setLastMsg(SL_DIFF_SIGN_FLIP);
-        }
-        if (isSustainedHeavyLongs || isSustainedHeavyShorts) {
-            if (isSustainedHeavyLongs && lastMsgStatus !== MSG_HEAVY_LONGS) {
-                msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts);
-                msgDetail += `\nLeveraged Long positions on GMX are at high levels relative to Shorts`;
-                msgDetail += `\n\nTraders are feeling <b><i>bullish</i></b> ${getSentimentMeter('bull', 3)}`;
-                msgDetail += DEBUG_MODE['GIRAFFLE_MODE'] ? '\n\n<b><u><i>HINT</i></u></b>: If this keeps up, prepare to <b><i>SHORT</b></i>' : '';
-                setLastMsg(MSG_HEAVY_LONGS);
-            }
-            if (isSustainedHeavyShorts && lastMsgStatus !== MSG_HEAVY_SHORTS) {
-                msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts);
-                msgDetail += `\nLeveraged Short positions on GMX are at high levels relative to Longs`;
-                msgDetail += `\n\nTraders are feeling <b><i>bearish</i></b> ${getSentimentMeter('bear', 3)}`;
-                msgDetail += DEBUG_MODE['GIRAFFLE_MODE'] ? '\n\n<b><u><i>HINT</i></u></b>: If this keeps up, prepare to <b><i>LONG</b></i>' : '';
-                setLastMsg(MSG_HEAVY_SHORTS);
-            }
-        }
-        if (isExtremeLongs || isExtremeShorts) {
-            if (isExtremeLongs && lastMsgStatus !== MSG_EXTREME_LONGS) {
-                msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts)
-                msgDetail += `\nLeveraged Long Positions on GMX have hit an extreme level relative to shorts in the past hour`;
-                msgDetail += `\n\nTraders are feeling <b><i>very bullish</i></b> ${getSentimentMeter('bull', 3)}`;
-                msgDetail += DEBUG_MODE['GIRAFFLE_MODE'] ? '\n\n<b><u><i>HINT</i></u></b>: Take a <b><i>SHORT POSITION</b></i> soon' : '';
-                setLastMsg(MSG_EXTREME_LONGS);
-            }
-            if (isExtremeShorts && lastMsgStatus !== MSG_EXTREME_SHORTS) {
-                msgTitle = buildMsgTitle(isExtremeLongs, isExtremeShorts)
-                msgDetail += `\nLeveraged Short Positions on GMX have hit an extreme level relative to longs in the past hour`;
-                msgDetail += `\n\nTraders are feeling <b><i>very bearish</i></b> ${getSentimentMeter('bear', 3)}}`;
-                msgDetail += DEBUG_MODE['GIRAFFLE_MODE'] ? '\n\n<b><u><i>HINT</i></u></b>: Take a <b><i>LONG POSITION</b></i> soon' : '';
-                setLastMsg(MSG_EXTREME_SHORTS);
-            }
+    return msgTitle + msgDetail;
+}
+
+const buildAlertMessage = function (
+    allPositionsData,
+    isShortLongDiffFlippedSign,
+    isSustainedHeavyLongs,
+    isSustainedHeavyShorts,
+    isExtremeLongs,
+    isExtremeShorts
+) {
+    const { lastPositionData,
+        shortLongDiffPercent1h,
+        isShortLongDiffPercentExtreme,
+        shortLongDiffPercent24h,
+        volumeTotalsPercent24h,
+        updatedAllPositionsData,
+        ratio } = getAlertMsgBuildVars(allPositionsData);
+    const { latestTrend,
+        trendStartIndex,
+        trendEndIndex,
+        latestTrendPercentChange,
+        latestTrendHoursElapsed } = findLastTrend(updatedAllPositionsData);
+    const sustainedHeavyLeverageConviction = getLeverageConviction(
+        lastPositionData.shortLongDiff,
+        THRESHOLDS.LOWER_HIGH_LEVERAGE,
+        THRESHOLDS.EXTREME_LEVERAGE,
+        3,
+        7
+    );
+    const extremeLeverageConviction = DEBUG_MODE['EXTREME_LONGS']
+        ? THRESHOLDS.EXTREME_LONGS_THRESHOLD
+        : getLeverageConviction(
+            lastPositionData.shortLongDiff,
+            THRESHOLDS.EXTREME_LEVERAGE,
+            THRESHOLDS.MAX_EXTREME_LEVERAGE,
+            8,
+            10
+        );
+    const lowTimeframeLeverageConviction = DEBUG_MODE['LOW_TF_LEVERAGE'] ? 8 : getLowTimeframeChangeConviction(lastPositionData.shortLongDiff, latestTrendPercentChange, latestTrendHoursElapsed);
+    const isExtremeLowTimeframeLeverage = lowTimeframeLeverageConviction > extremeLowTimeframeLeverageConvictionLevel;
+    const isHighLeverageAlert =
+        DEBUG_MODE['EXTREME_LONGS'] ||
+        DEBUG_MODE['LOW_TF_LEVERAGE'] ||
+        extremeLeverageConviction ||
+        sustainedHeavyLeverageConviction ||
+        isExtremeLowTimeframeLeverage;
+    const minutesSinceLastAlert = diffMinutes(lastMsgTimestamp, Date.now());
+    const ishalfHourElapsedFromLastAlert = lastMsgTimestamp ? minutesSinceLastAlert >= 30 : true;
+    let msgTitle = '';
+    let msgDetail = '';
+
+    if (isHighLeverageAlert || isShortLongDiffFlippedSign) {
+        msgTitle = buildMessageTitle(isExtremeLongs, isExtremeShorts, isExtremeLowTimeframeLeverage);
+        msgDetail = '';
+        console.log('lastMsgStatus: ', lastMsgStatus);
+
+        if ((lastMsgStatus !== MSG_EXTREME_LONGS || ishalfHourElapsedFromLastAlert) && (DEBUG_MODE['EXTREME_LONGS'] || extremeLeverageConviction && isExtremeLongs)) {
+            msgDetail = getHeavyLeverageMessage(DEBUG_MODE['EXTREME_LONGS'] || isExtremeLongs, isExtremeShorts, 5);
+            msgDetail += buildConvictionMeter(extremeLeverageConviction);
+            setLastMsg(MSG_EXTREME_LONGS);
+        } else if ((lastMsgStatus !== MSG_EXTREME_SHORTS || ishalfHourElapsedFromLastAlert) && extremeLeverageConviction && isExtremeShorts) {
+            msgDetail = getHeavyLeverageMessage(DEBUG_MODE['EXTREME_LONGS'] || isExtremeLongs, isExtremeShorts, 5);
+            msgDetail += buildConvictionMeter(extremeLeverageConviction);
+            setLastMsg(MSG_EXTREME_SHORTS);
+        } else if ((lastMsgStatus !== LOW_TIMEFRAME_HIGH_LEVERAGE || ishalfHourElapsedFromLastAlert) && (DEBUG_MODE['LOW_TF_LEVERAGE'] || isExtremeLowTimeframeLeverage)) {
+            msgDetail = getLowTimeframeMessage(latestTrend, latestTrendPercentChange, latestTrendHoursElapsed, lowTimeframeLeverageConviction);
+            msgDetail += buildConvictionMeter(lowTimeframeLeverageConviction);
+            setLastMsg(LOW_TIMEFRAME_HIGH_LEVERAGE);
+        } else if ((lastMsgStatus !== MSG_HEAVY_LONGS || ishalfHourElapsedFromLastAlert) && sustainedHeavyLeverageConviction && isSustainedHeavyLongs) {
+            msgDetail = getHeavyLeverageMessage(isSustainedHeavyLongs, isSustainedHeavyShorts, 3);
+            msgDetail += buildConvictionMeter(sustainedHeavyLeverageConviction);
+            setLastMsg(MSG_HEAVY_LONGS);
+        } else if ((lastMsgStatus !== MSG_HEAVY_SHORTS || ishalfHourElapsedFromLastAlert) && sustainedHeavyLeverageConviction && isSustainedHeavyShorts) {
+            msgDetail = getHeavyLeverageMessage(isSustainedHeavyLongs, isSustainedHeavyShorts, 3);
+            msgDetail += buildConvictionMeter(sustainedHeavyLeverageConviction);
+            setLastMsg(MSG_HEAVY_SHORTS);
         }
 
+        // if there is an alert
         if (msgDetail) {
-            msg += msgTitle;
-            msg += msgDetail;
-            msg += buildConvictionMeter(sustainedHeavyLeverageConviction);
-            msg += msgStats(
+            setLastMsgTimestamp();
+            msgDetail += getMessageStats(
                 lastPositionData.shortVolume,
                 lastPositionData.longVolume,
                 lastPositionData.shortLongDiff,
-                ratio,
                 volumeTotalsPercent24h,
-                shortLongDiffPercent24h
+                shortLongDiffPercent24h,
+                extremeLeverageConviction,
+                latestTrendPercentChange,
+                latestTrendHoursElapsed
             );
+            console.log('lastMsgTimestamp: ', lastMsgTimestamp)
+            return msgTitle + msgDetail;
         }
     } else {
-        if (lastMsgStatus === MSG_HEAVY_LONGS ||
-            lastMsgStatus === MSG_HEAVY_SHORTS ||
-            lastMsgStatus === MSG_EXTREME_LONGS ||
-            lastMsgStatus === MSG_EXTREME_SHORTS) {
-            msg += "UPDATE: LEVERAGED SHORTS/LONGS ARE NO LONGER AT AN ELEVATED LEVEL";
+        if (lastMsgStatus && lastMsgStatus !== MSG_NO_ALERT) {
+            msgTitle = `<b><u><i>ALERT DEACTIVATED</i></u></b> \n\n`;
+            msgDetail = buildDeactivatedAlertMsg(lastMsgStatus);
+            setLastMsg(MSG_NO_ALERT);
+
+            return msgTitle + msgDetail;
         }
         setLastMsg(MSG_NO_ALERT);
-    }
 
-    return msg;
+        return false;
+    }
 }
 
 function getStandardDeviation(allPositionsData) {
@@ -368,7 +492,7 @@ function getStandardDeviation(allPositionsData) {
     return shortLongDiffStandardDeviation;
 }
 
-async function buildMessage() {
+async function getAlertMessage() {
     const allPositionsData = await getPositionsData();
     const latestPositionData = allPositionsData.slice(allPositionsData.length - 10);
     const numSustainedOccurencesForRelevance = THRESHOLDS.HIGH_LEVEL_OCCURRENCES_FOR_RELEVANCE;
@@ -394,7 +518,7 @@ async function buildMessage() {
             }
         );
 
-    const msg = buildAlertMsg(
+    const msg = buildAlertMessage(
         allPositionsData,
         isShortLongDiffFlippedSign,
         isSustainedHeavyLongs,
@@ -419,4 +543,14 @@ async function buildMessage() {
     return msg;
 }
 
-module.exports = buildMessage;
+async function getDailyDigestMessage() {
+    const allPositionsData = await getPositionsData();
+    const msg = buildDailyDigest(allPositionsData);
+
+    return msg;
+}
+
+module.exports = {
+    getAlertMessage,
+    getDailyDigestMessage
+}

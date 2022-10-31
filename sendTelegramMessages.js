@@ -1,10 +1,10 @@
-const buildMessage = require('./buildMessage');
+const { getAlertMessage, getDailyDigestMessage } = require('./buildMessage');
 const { TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const puppeteer = require("puppeteer");
 const { DEBUG_MODE } = require('./constants');
 
-const isDebugMode = DEBUG_MODE['EXTREME_LONGS'] || DEBUG_MODE['HOURLY'] || DEBUG_MODE['EXTREME_SHORTS'];
+const isDebugMode = DEBUG_MODE['EXTREME_LONGS'] || DEBUG_MODE['HOURLY'] || DEBUG_MODE['EXTREME_SHORTS'] || DEBUG_MODE['LOW_TF_LEVERAGE'];
 const peer = isDebugMode ? 'edwardmolasses' : 'LeverageRatioAlerts';
 const TG_API_ID = parseInt(process.env.TG_API_ID);
 const TG_API_HASH = process.env.TG_API_HASH;
@@ -29,7 +29,14 @@ const sendMsgByBot = async function (msg) {
     }
 }
 
-async function sendTelegramMessage(remoteChartWidth, remoteChartHeight, remoteChartUrl, chartFilename, msg) {
+async function sendTelegramDailyMessage() {
+    const msg = await getDailyDigestMessage();
+
+    await sendMsgByBot(msg);
+}
+
+async function sendTelegramAlertMessage() {
+    const msg = await getAlertMessage();
     puppeteer
         .launch({
             defaultViewport: {
@@ -50,11 +57,9 @@ async function sendTelegramMessage(remoteChartWidth, remoteChartHeight, remoteCh
         });
 }
 
-async function sendTelegramMessages() {
-    const msg = await buildMessage();
-    console.log(msg);
+module.exports = sendTelegramAlertMessage;
 
-    sendTelegramMessage(remoteChartWidth, remoteChartHeight, remoteChartUrl, chartFilename, msg);
+module.exports = {
+    sendTelegramAlertMessage,
+    sendTelegramDailyMessage
 }
-
-module.exports = sendTelegramMessages;

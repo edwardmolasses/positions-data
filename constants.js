@@ -11,12 +11,14 @@ module.exports = {
         HIGH_LEVERAGE: 50 * millionsMultiplier,
         EXTREME_LEVERAGE: 59 * millionsMultiplier,
         MAX_EXTREME_LEVERAGE: 85 * millionsMultiplier,
-        SL_DIFF_EXTREME_PERCENT: 50
+        SL_DIFF_EXTREME_PERCENT: 50,
+        EXTREME_LONGS_THRESHOLD: 9
     },
     DEBUG_MODE: {
         HOURLY: false,
-        EXTREME_LONGS: true,
+        EXTREME_LONGS: false,
         EXTREME_SHORTS: false,
+        LOW_TF_LEVERAGE: true,
         GIRAFFLE_MODE: true,
     },
     ACCEPT_STRINGS: {

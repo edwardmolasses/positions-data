@@ -1,18 +1,36 @@
 const express = require('express')
 const CSVToJSON = require('csvtojson');
+const schedule = require('node-schedule');
 const PORT = process.env.PORT || 5003
 const addPositions = require('./addPositions');
+const getVixData = require('./getVixData');
 const getPositionsData = require('./getPositionsData');
-const sendTelegramMessages = require('./sendTelegramMessages');
+const { sendTelegramAlertMessage, sendTelegramDailyMessage } = require('./sendTelegramMessages');
 const setVariableInterval = require('./setVariableInterval');
 const getContentfulNumOfEntries = require('./getContentfulNumOfEntries');
 
 const app = express(); //Line 2
 const path = __dirname + '/public/views/';
 
+// get leverage positions interval
 setVariableInterval(() => { addPositions() }, 30);
 
-setVariableInterval(() => { sendTelegramMessages() }, 15, false);
+// alert message interval
+setVariableInterval(() => { sendTelegramAlertMessage() }, 15, false);
+
+// daily digest scheduled job
+const dailyDigestRule = new schedule.RecurrenceRule();
+dailyDigestRule.hour = 6;
+dailyDigestRule.minute = 0;
+const dailyDigestJob = schedule.scheduleJob(dailyDigestRule, function () {
+  sendTelegramDailyMessage();
+});
+
+// async function testVix() {
+//   // console.log(getVixData());
+//   // await getVixData();
+// }
+// testVix();
 
 app.use(express.static(path));
 
