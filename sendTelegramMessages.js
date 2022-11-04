@@ -57,8 +57,6 @@ async function sendTelegramAlertMessage() {
         });
 }
 
-module.exports = sendTelegramAlertMessage;
-
 module.exports = {
     sendTelegramAlertMessage,
     sendTelegramDailyMessage
