@@ -1,6 +1,6 @@
 const contentful = require("contentful-management");
-const CONTENTFUL_ACCESS_TOKEN = process.env.CONTENTFUL_ACCESS_TOKEN;
-const CONTENTFUL_SPACE_ID = process.env.CONTENTFUL_SPACE_ID;
+const CONTENTFUL_ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const CONTENTFUL_SPACE_ID = process.env.SPACE_ID;
 
 async function getContentfulNumOfEntries() {
     const scopedPlainClient = contentful.createClient(

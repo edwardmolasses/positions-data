@@ -6,8 +6,8 @@ const fetch = require('node-fetch');
 const contentful = require("contentful-management");
 const { ACCEPT_STRINGS } = require('./constants');
 
-const CONTENTFUL_ACCESS_TOKEN = process.env.CONTENTFUL_ACCESS_TOKEN;
-const CONTENTFUL_SPACE_ID = process.env.CONTENTFUL_SPACE_ID;
+const CONTENTFUL_ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const CONTENTFUL_SPACE_ID = process.env.SPACE_ID;
 
 function getAcceptForBrowserVersion(browser, version) {
     let accept;
