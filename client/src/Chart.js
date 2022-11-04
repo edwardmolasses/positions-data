@@ -2,7 +2,6 @@ import { Component } from "react";
 import {
   ReferenceLine,
   ReferenceArea,
-  ReferenceDot,
   Rectangle,
   LineChart,
   Line,
@@ -11,6 +10,7 @@ import {
   CartesianGrid,
   Tooltip
 } from "recharts";
+import AlertStatus from './AlertStatus';
 
 class LineChartComponent extends Component {
   state = {
@@ -75,6 +75,14 @@ class LineChartComponent extends Component {
   }
 
   render() {
+    const diffHours = function (startTime, endTime) {
+      const differenceInMiliseconds = endTime - startTime;
+      const differenceInSeconds = differenceInMiliseconds / 1000;
+      const differenceInMinutes = differenceInSeconds / 60;
+      const differenceInHours = differenceInMinutes / 60;
+
+      return Math.abs(differenceInHours);
+    }
     const prettifyNum = (num) => !!num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : 0;
     const prettifyDate = (dateObj, showTime = true) => {
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -156,6 +164,16 @@ class LineChartComponent extends Component {
                 </td>
                 <td style={{ textAlign: "right" }}>
                   ${prettifyNum(this.state.latestEthPrice)}
+                </td>
+              </tr>
+            )}
+            {!!this.state.chartData && this.state.chartData.length && (
+              <tr>
+                <td>
+                  <b>Last Update: </b>
+                </td>
+                <td style={{ textAlign: "right" }}>
+                  <AlertStatus elapsedTime={diffHours((this.state.chartData.pop()).date, Date.now()).toFixed(2)} />
                 </td>
               </tr>
             )}

@@ -18,7 +18,7 @@ module.exports = {
         HOURLY: false,
         EXTREME_LONGS: false,
         EXTREME_SHORTS: false,
-        LOW_TF_LEVERAGE: true,
+        LOW_TF_LEVERAGE: false,
         GIRAFFLE_MODE: true,
     },
     ACCEPT_STRINGS: {
