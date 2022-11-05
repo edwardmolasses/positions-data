@@ -37,28 +37,28 @@ async function sendTelegramDailyMessage() {
 }
 
 async function sendTelegramAlertMessage() {
-    const msg = await getDailyDigestMessage();
+    // const msg = await getDailyDigestMessage();
 
-    await sendMsgByBot(msg);
-    // const msg = await getAlertMessage();
-    // puppeteer
-    //     .launch({
-    //         defaultViewport: {
-    //             width: remoteChartWidth,
-    //             height: remoteChartHeight,
-    //         },
-    //     })
-    //     .then(async (browser) => {
-    //         const page = await browser.newPage();
-    //         const url = `http://${remoteChartUrl}`;
+    // await sendMsgByBot(msg);
+    const msg = await getAlertMessage();
+    puppeteer
+        .launch({
+            defaultViewport: {
+                width: remoteChartWidth,
+                height: remoteChartHeight,
+            },
+        })
+        .then(async (browser) => {
+            const page = await browser.newPage();
+            const url = `http://${remoteChartUrl}`;
 
-    //         await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 });
-    //         setTimeout(async function () {
-    //             await page.screenshot({ path: chartFilename });
-    //             await browser.close();
-    //             await sendMsgByBot(msg);
-    //         }, 10000);
-    //     });
+            await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 });
+            setTimeout(async function () {
+                await page.screenshot({ path: chartFilename });
+                await browser.close();
+                await sendMsgByBot(msg);
+            }, 10000);
+        });
 }
 
 module.exports = {
