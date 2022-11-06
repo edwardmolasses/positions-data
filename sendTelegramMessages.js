@@ -36,25 +36,28 @@ async function sendTelegramDailyMessage() {
 }
 
 async function sendTelegramAlertMessage() {
-    const msg = await getAlertMessage();
-    puppeteer
-        .launch({
-            defaultViewport: {
-                width: remoteChartWidth,
-                height: remoteChartHeight,
-            },
-        })
-        .then(async (browser) => {
-            const page = await browser.newPage();
-            const url = `http://${remoteChartUrl}`;
+    const msg = await getDailyDigestMessage();
+    await sendMsgByBot(msg);
 
-            await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 });
-            setTimeout(async function () {
-                await page.screenshot({ path: chartFilename });
-                await browser.close();
-                await sendMsgByBot(msg);
-            }, 10000);
-        });
+    // const msg = await getAlertMessage();
+    // puppeteer
+    //     .launch({
+    //         defaultViewport: {
+    //             width: remoteChartWidth,
+    //             height: remoteChartHeight,
+    //         },
+    //     })
+    //     .then(async (browser) => {
+    //         const page = await browser.newPage();
+    //         const url = `http://${remoteChartUrl}`;
+
+    //         await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 });
+    //         setTimeout(async function () {
+    //             await page.screenshot({ path: chartFilename });
+    //             await browser.close();
+    //             await sendMsgByBot(msg);
+    //         }, 10000);
+    //     });
 }
 
 module.exports = {
