@@ -40,8 +40,11 @@ class LineChartComponent extends Component {
 
   componentDidMount() {
     async function getChartData() {
+      const chartDataEntriesLimit = 500;
       const response = await fetch('/api/positionsDataFromContentful');
-      return await response.json();
+      const responseJson = await response.json();
+      const truncatedResponseJson = responseJson.slice(responseJson.length - chartDataEntriesLimit, responseJson.length);
+      return truncatedResponseJson;
     }
     const fetchData = async () => {
       // const numOfEntriesResponse = await fetch('/api/getContentfulNumOfEntries');
