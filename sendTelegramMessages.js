@@ -47,7 +47,7 @@ async function sendTelegramAlertMessage() {
     await page.setViewportSize({ width: remoteChartWidth, height: remoteChartHeight });
     await page.goto(remoteChartUrl);
     setTimeout(async function () {
-        await page.screenshot({ path: chartFilename });
+        await page.screenshot({ path: 'chart.png' });
         await browser.close();
         await sendMsgByBot(msg);
     }, 10000);
