@@ -52,7 +52,7 @@ async function sendTelegramAlertMessage() {
 
             await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 });
             setTimeout(async function () {
-                await page.screenshot({ path: chartFilename });
+                // await page.screenshot({ path: chartFilename });
                 await browser.close();
                 await sendMsgByBot(msg);
             }, 10000);
