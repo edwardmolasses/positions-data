@@ -45,6 +45,13 @@ async function sendTelegramAlertMessage() {
                 width: remoteChartWidth,
                 height: remoteChartHeight,
             },
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--single-process'
+            ]
         })
         .then(async (browser) => {
             const page = await browser.newPage();
