@@ -1,7 +1,9 @@
 const { getAlertMessage, getDailyDigestMessage } = require('./buildMessage');
 const { TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
-const puppeteer = require("puppeteer");
+const { chromium } = require("playwright");
+// const puppeteer = require("puppeteer");
+
 const { DEBUG_MODE } = require('./constants');
 
 const isDebugMode = DEBUG_MODE['EXTREME_LONGS'] || DEBUG_MODE['HOURLY'] || DEBUG_MODE['EXTREME_SHORTS'] || DEBUG_MODE['LOW_TF_LEVERAGE'];
@@ -38,7 +40,17 @@ async function sendTelegramDailyMessage() {
 async function sendTelegramAlertMessage() {
     const msg = await getAlertMessage();
 
-    await sendMsgByBot(msg);
+    // await sendMsgByBot(msg);
+    let browser = await chromium.launch();
+    let page = await browser.newPage();
+
+    await page.setViewportSize({ width: remoteChartWidth, height: remoteChartHeight });
+    await page.goto(remoteChartUrl);
+    setTimeout(async function () {
+        await page.screenshot({ path: chartFilename });
+        await browser.close();
+        await sendMsgByBot(msg);
+    }, 10000);
 
     // puppeteer
     //     .launch({
