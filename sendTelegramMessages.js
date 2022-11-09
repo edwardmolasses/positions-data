@@ -40,17 +40,17 @@ async function sendTelegramDailyMessage() {
 async function sendTelegramAlertMessage() {
     const msg = await getAlertMessage();
 
-    // await sendMsgByBot(msg);
-    let browser = await chromium.launch();
-    let page = await browser.newPage();
+    await sendMsgByBot(msg);
+    // let browser = await chromium.launch();
+    // let page = await browser.newPage();
 
-    await page.setViewportSize({ width: remoteChartWidth, height: remoteChartHeight });
-    await page.goto(remoteChartUrl);
-    setTimeout(async function () {
-        await page.screenshot({ path: 'chart.png' });
-        await browser.close();
-        await sendMsgByBot(msg);
-    }, 10000);
+    // await page.setViewportSize({ width: remoteChartWidth, height: remoteChartHeight });
+    // await page.goto(remoteChartUrl);
+    // setTimeout(async function () {
+    //     await page.screenshot({ path: 'chart.png' });
+    //     await browser.close();
+    //     await sendMsgByBot(msg);
+    // }, 10000);
 
     // puppeteer
     //     .launch({
