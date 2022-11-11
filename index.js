@@ -16,15 +16,15 @@ const path = __dirname + '/public/views/';
 setVariableInterval(() => { addPositions() }, 30);
 
 // alert message interval
-setVariableInterval(() => { sendTelegramAlertMessage() }, 15, false);
+// setVariableInterval(() => { sendTelegramAlertMessage() }, 15, false);
 
 // daily digest scheduled job
 const dailyDigestRule = new schedule.RecurrenceRule();
 dailyDigestRule.hour = 6;
 dailyDigestRule.minute = 0;
-const dailyDigestJob = schedule.scheduleJob(dailyDigestRule, function () {
-  sendTelegramDailyMessage();
-});
+// const dailyDigestJob = schedule.scheduleJob(dailyDigestRule, function () {
+//   sendTelegramDailyMessage();
+// });
 
 // async function testVix() {
 //   // console.log(getVixData());
