@@ -16,7 +16,7 @@ module.exports = {
     },
     DEBUG_MODE: {
         HOURLY: false,
-        EXTREME_LONGS: true,
+        EXTREME_LONGS: false,
         EXTREME_SHORTS: false,
         LOW_TF_LEVERAGE: false,
         GIRAFFLE_MODE: true,
