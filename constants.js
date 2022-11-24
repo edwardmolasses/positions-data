@@ -19,6 +19,7 @@ module.exports = {
         EXTREME_LONGS: false,
         EXTREME_SHORTS: false,
         LOW_TF_LEVERAGE: false,
+        TELEGRAM_TOGGLE: false,
         GIRAFFLE_MODE: true,
     },
     ACCEPT_STRINGS: {
