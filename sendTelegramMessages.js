@@ -4,6 +4,10 @@ const { StringSession } = require("telegram/sessions");
 const puppeteer = require("puppeteer");
 const { DEBUG_MODE } = require('./constants');
 
+const { Builder } = require("selenium-webdriver");
+require("chromedriver");
+let fs = require("fs");
+
 const isDebugMode = DEBUG_MODE['EXTREME_LONGS'] || DEBUG_MODE['HOURLY'] || DEBUG_MODE['EXTREME_SHORTS'] || DEBUG_MODE['LOW_TF_LEVERAGE'];
 const peer = isDebugMode ? 'edwardmolasses' : 'LeverageRatioAlerts';
 const TG_API_ID = parseInt(process.env.TG_API_ID);
@@ -29,16 +33,32 @@ const sendMsgByBot = async function (msg) {
     }
 }
 
-async function sendTelegramDailyMessage() {
-    const msg = await getDailyDigestMessage();
+async function takeScreenshot(url) {
+    //Wait for browser to build and launch properly
+    let driver = await new Builder().forBrowser("chrome").build();
 
-    await sendMsgByBot(msg);
+    //Navigate to the url passed in
+    await driver.get(url);
+
+    //Capture the screenshot
+    let image = await driver.takeScreenshot();
+
+    await fs.writeFileSync("./chart.png", image, "base64");
+    await driver.quit();
+}
+
+async function sendTelegramDailyMessage() {
+    // const msg = await getDailyDigestMessage();
+
+    // await sendMsgByBot(msg);
 }
 
 async function sendTelegramAlertMessage() {
     // const msg = await getAlertMessage();
-    const msg = await getDailyDigestMessage();
-    await sendMsgByBot(msg);
+    // const msg = await getDailyDigestMessage();
+    // await sendMsgByBot(msg);
+
+    takeScreenshot(`http://${remoteChartUrl}`);
 
     // puppeteer
     //     .launch({
