@@ -24,11 +24,11 @@ class LineChartComponent extends Component {
   };
 
   formatData = (data) =>
-    data.map(({ timestamp, shortLongDiff }) => {
+    data.map(({ timestamp, shortVolume, longVolume }) => {
 
       return {
         date: timestamp,
-        shortMinusLong: shortLongDiff
+        longMinusShort: longVolume - shortVolume
       }
     });
 
@@ -107,7 +107,7 @@ class LineChartComponent extends Component {
                   <td>{dateStr}</td>
                 </tr>
                 <tr>
-                  <td>${prettifyNum(payload[0]?.payload.shortMinusLong)}</td>
+                  <td>${prettifyNum(payload[0]?.payload.longMinusShort)}</td>
                 </tr>
                 {rawDataElement?.ethPrice &&
                   (
@@ -141,7 +141,7 @@ class LineChartComponent extends Component {
 
     return (
       <>
-        <h1 style={{ marginTop: "25px", marginLeft: "150px", position: "absolute" }}>GMX Short/Long Relative Volume</h1>
+        <h1 style={{ marginTop: "25px", marginLeft: "150px", position: "absolute" }}>GMX Long/Short Relative Volume</h1>
         <table style={{ marginTop: "30px", marginLeft: "700px", position: "absolute" }}>
           <tbody>
             <tr>
@@ -197,16 +197,16 @@ class LineChartComponent extends Component {
             }
           })} */}
           <ReferenceLine y={0} stroke="orange" strokeWidth={2} strokeDasharray="3 3" />
-          <ReferenceLine y={-50000000} stroke="red" strokeWidth={2} strokeDasharray="5 5" />
+          <ReferenceLine y={-50000000} stroke="#00FF00" strokeWidth={2} strokeDasharray="5 5" />
           {/* <ReferenceLine y={-50000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" /> */}
-          <ReferenceLine y={50000000} stroke="#00FF00" strokeWidth={2} strokeDasharray="5 5" />
+          <ReferenceLine y={50000000} stroke="red" strokeWidth={2} strokeDasharray="5 5" />
           {/* <ReferenceLine y={50000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" /> */}
           <ReferenceArea
             y1={-50000000}
             y2={50000000}
             shape={<Rectangle />}
           />
-          <Line type="monotone" dataKey="shortMinusLong" stroke="#8884d8" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="longMinusShort" stroke="#8884d8" strokeWidth={2} dot={false} />
           <CartesianGrid stroke="#ccc" strokeWidth="5 5" />
           <XAxis dataKey="date" tickFormatter={formatXAxis} angle={-45} textAnchor="end" tick={{ fontSize: '12' }} />
           <YAxis tickFormatter={formatYAxis} domain={[-85000000, 85000000]} tick={{ fontSize: '12' }} />

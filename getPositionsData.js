@@ -56,6 +56,7 @@ async function getAllPositionsData() {
                 return {
                     "timestamp": parseInt(item.fields.timestamp['en-US']),
                     "shortLongDiff": parseInt(item.fields.shortLongDiff['en-US']),
+                    "longShortDiff": parseInt(item.fields.longVolume['en-US']) - parseInt(item.fields.shortVolume['en-US']),
                     "shortVolume": parseInt(item.fields.shortVolume['en-US']),
                     "longVolume": parseInt(item.fields.longVolume['en-US']),
                     "ethPrice": !!item.fields.ethPrice ? parseInt(item.fields.ethPrice['en-US']) : null,
