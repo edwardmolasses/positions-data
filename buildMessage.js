@@ -301,8 +301,8 @@ const getMessageStats = (
     latestTrendPercentChange,
     latestTrendHoursElapsed
 ) => {
-    const extremeLowTimeframeLeverageEmoji = latestTrendPercentChange > 0 ? bearEmoji : latestTrendPercentChange < 0 ? bullEmoji : '';
-    const longShortDiffPercent24hEmoji = longShortDiffPercent24h > 0 ? bearEmoji : longShortDiffPercent24h < 0 ? bullEmoji : '';
+    const extremeLowTimeframeLeverageEmoji = latestTrendPercentChange > 0 ? bullEmoji : latestTrendPercentChange < 0 ? bearEmoji : '';
+    const longShortDiffPercent24hEmoji = longShortDiffPercent24h > 0 ? bullEmoji : longShortDiffPercent24h < 0 ? bearEmoji : '';
     let msg = '\n';
 
     msg += `<pre>`;
