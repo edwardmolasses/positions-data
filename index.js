@@ -14,7 +14,7 @@ const app = express(); //Line 2
 const path = __dirname + '/public/views/';
 
 // get leverage positions interval
-setVariableInterval(() => { addPositions() }, 30);
+setVariableInterval(() => { addPositions() }, 45);
 
 if (DEBUG_MODE.TELEGRAM_TOGGLE) {
   // alert message interval
