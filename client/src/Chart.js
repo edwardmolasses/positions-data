@@ -78,6 +78,7 @@ class LineChartComponent extends Component {
   }
 
   render() {
+    const range = 47000000;
     const diffHours = function (startTime, endTime) {
       const differenceInMiliseconds = endTime - startTime;
       const differenceInSeconds = differenceInMiliseconds / 1000;
@@ -146,18 +147,18 @@ class LineChartComponent extends Component {
           <tbody>
             <tr>
               <td>
-                <b>Short Volume: </b>
-              </td>
-              <td style={{ textAlign: "right" }}>
-                ${prettifyNum(this.state.latestShortVolume)}
-              </td>
-            </tr>
-            <tr>
-              <td>
                 <b>Long Volume: </b>
               </td>
               <td style={{ textAlign: "right" }}>
                 ${prettifyNum(this.state.latestLongVolume)}
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <b>Short Volume: </b>
+              </td>
+              <td style={{ textAlign: "right" }}>
+                ${prettifyNum(this.state.latestShortVolume)}
               </td>
             </tr>
             {!!this.state.latestEthPrice && (
@@ -197,13 +198,13 @@ class LineChartComponent extends Component {
             }
           })} */}
           <ReferenceLine y={0} stroke="orange" strokeWidth={2} strokeDasharray="3 3" />
-          <ReferenceLine y={-50000000} stroke="#00FF00" strokeWidth={2} strokeDasharray="5 5" />
+          <ReferenceLine y={-range} stroke="#00FF00" strokeWidth={2} strokeDasharray="5 5" />
           {/* <ReferenceLine y={-50000000} label={{ value: 'open short here', fill: 'red', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" /> */}
-          <ReferenceLine y={50000000} stroke="red" strokeWidth={2} strokeDasharray="5 5" />
+          <ReferenceLine y={range} stroke="red" strokeWidth={2} strokeDasharray="5 5" />
           {/* <ReferenceLine y={50000000} label={{ value: 'open long here', fill: 'green', fontSize: '10px' }} stroke="blue" strokeWidth={0} strokeDasharray="5 5" /> */}
           <ReferenceArea
-            y1={-50000000}
-            y2={50000000}
+            y1={-range}
+            y2={range}
             shape={<Rectangle />}
           />
           <Line type="monotone" dataKey="longMinusShort" stroke="#8884d8" strokeWidth={2} dot={false} />
